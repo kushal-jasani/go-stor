@@ -234,7 +234,6 @@ exports.varifyLoginOTP = async (req, res, next) => {
       clientId,
       clientSecret
     );
-    console.log(varificationresponse)
     if (varificationresponse.success === false) {
       return sendHttpResponse(
         req,
