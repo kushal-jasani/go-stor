@@ -69,7 +69,7 @@ exports.register = async (req, res, next) => {
         })
       );
     }
-  } catch {
+  } catch(error) {
     console.log("error while registering user", error);
     return sendHttpResponse(
       req,
