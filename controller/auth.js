@@ -6,7 +6,7 @@ const {
   generateRefreshToken,
   verifyRefreshToken,
 } = require("../util/jwt");
-const { findUser,insertUser } = require("../repository/auth");
+const { findUser, insertUser } = require("../repository/auth");
 const clientId = process.env.OTPLESS_CLIENTID;
 const clientSecret = process.env.OTPLESS_CLIETSECRET;
 
@@ -37,8 +37,8 @@ exports.register = async (req, res, next) => {
       "SMS",
       "",
       "",
-      60,
-      4,
+      600,
+      6,
       clientId,
       clientSecret
     );
@@ -69,7 +69,7 @@ exports.register = async (req, res, next) => {
         })
       );
     }
-  } catch(error) {
+  } catch (error) {
     console.log("error while registering user", error);
     return sendHttpResponse(
       req,
@@ -130,7 +130,7 @@ exports.verifyRegisterOTP = async (req, res, next) => {
         statusCode: 404,
         status: "error",
         msg: varificationresponse.reason ? varificationresponse.reason : "entered otp is wrong,please try again😓",
-    })
+      })
     );
   } catch (error) {
     console.log(error);
@@ -172,8 +172,8 @@ exports.logIn = async (req, res, next) => {
       "SMS",
       "",
       "",
-      60,
-      4,
+      600,
+      6,
       clientId,
       clientSecret
     );
@@ -263,17 +263,17 @@ exports.varifyLoginOTP = async (req, res, next) => {
         })
       );
     }
-    else{
-        return sendHttpResponse(
-            req,
-            res,
-            next,
-            generateResponse({
-              statusCode: 404,
-              status: "error",
-              msg: varificationresponse.reason ? varificationresponse.reason : "entered otp is wrong,please try again😓",
-            })
-          );
+    else {
+      return sendHttpResponse(
+        req,
+        res,
+        next,
+        generateResponse({
+          statusCode: 404,
+          status: "error",
+          msg: varificationresponse.reason ? varificationresponse.reason : "entered otp is wrong,please try again😓",
+        })
+      );
     }
   } catch (error) {
     console.log("error while login", error);
@@ -291,104 +291,104 @@ exports.varifyLoginOTP = async (req, res, next) => {
 };
 
 exports.refreshAccessToken = async (req, res, next) => {
-    try {
-      const { refreshToken } = req.body;
-      const userId = verifyRefreshToken(refreshToken);
-      if (userId === "expired") {
-        return sendHttpResponse(
-          req,
-          res,
-          next,
-          generateResponse({
-            statusCode: 401,
-            status: "error",
-            msg: "Refresh token has expired⏳",
-          })
-        );
-      } else if (!userId) {
-        return sendHttpResponse(
-          req,
-          res,
-          next,
-          generateResponse({
-            statusCode: 401,
-            status: "error",
-            msg: "Invalid refresh token🚨",
-          })
-        );
-      }
-      const accessToken = generateAccessToken(userId);
+  try {
+    const { refreshToken } = req.body;
+    const userId = verifyRefreshToken(refreshToken);
+    if (userId === "expired") {
       return sendHttpResponse(
         req,
         res,
         next,
         generateResponse({
-          statusCode: 200,
-          status: "success",
-          msg: "New access token generated successfully🧾",
-          data: {
-            accessToken,
-          },
+          statusCode: 401,
+          status: "error",
+          msg: "Refresh token has expired⏳",
         })
       );
-    } catch (error) {
-      console.log("error while refreshing access token", error);
+    } else if (!userId) {
       return sendHttpResponse(
         req,
         res,
         next,
         generateResponse({
+          statusCode: 401,
           status: "error",
-          statusCode: 500,
-          msg: "internal server error",
+          msg: "Invalid refresh token🚨",
         })
       );
     }
-  };
+    const accessToken = generateAccessToken(userId);
+    return sendHttpResponse(
+      req,
+      res,
+      next,
+      generateResponse({
+        statusCode: 200,
+        status: "success",
+        msg: "New access token generated successfully🧾",
+        data: {
+          accessToken,
+        },
+      })
+    );
+  } catch (error) {
+    console.log("error while refreshing access token", error);
+    return sendHttpResponse(
+      req,
+      res,
+      next,
+      generateResponse({
+        status: "error",
+        statusCode: 500,
+        msg: "internal server error",
+      })
+    );
+  }
+};
 
 
 exports.resendOtp = async (req, res, next) => {
-    const { otpid } = req.body;
-    try {
-      const response = await otpless.resendOTP(otpid, clientId, clientSecret);
-      if (response.success === false) {
-        return sendHttpResponse(
-          req,
-          res,
-          next,
-          generateResponse({
-            status: "error",
-            statusCode: 400,
-            msg: response.errorMessage,
-          })
-        );
-      }
-      const newotpId = response.orderId;
-      return sendHttpResponse(
-        req,
-        res,
-        next,
-        generateResponse({
-          statusCode: 200,
-          status: "success",
-          data: {
-            otpid: newotpId,
-          },
-          msg: "otp resent successfully✅",
-        })
-      );
-    } catch (error) {
-      console.log(error);
+  const { otpid } = req.body;
+  try {
+    const response = await otpless.resendOTP(otpid, clientId, clientSecret);
+    if (response.success === false) {
       return sendHttpResponse(
         req,
         res,
         next,
         generateResponse({
           status: "error",
-          statusCode: 500,
-          msg: "internal server error",
+          statusCode: 400,
+          msg: response.errorMessage,
         })
       );
     }
-  };
-  
+    const newotpId = response.orderId;
+    return sendHttpResponse(
+      req,
+      res,
+      next,
+      generateResponse({
+        statusCode: 200,
+        status: "success",
+        data: {
+          otpid: newotpId,
+        },
+        msg: "otp resent successfully✅",
+      })
+    );
+  } catch (error) {
+    console.log(error);
+    return sendHttpResponse(
+      req,
+      res,
+      next,
+      generateResponse({
+        status: "error",
+        statusCode: 500,
+        msg: "internal server error",
+      })
+    );
+  }
+};
+
