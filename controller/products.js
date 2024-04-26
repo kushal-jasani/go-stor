@@ -2,7 +2,8 @@ const {
     getCategoryList,
     getSubCategoryList,
     getProductByCategoryId,
-    getProductBySubCategoryId
+    getProductBySubCategoryId,
+    getProductByProductId
 } = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -76,7 +77,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
     try {
         const categoryId = req.params.categoryId;
         const page = parseInt(req.query.page) || 1;
-        const limit = 2;
+        const limit = 10;
         const offset = (page - 1) * limit;
         const [products] = await getProductByCategoryId(categoryId, offset, limit)
         if (!products.length) {
@@ -112,7 +113,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
     try {
         const subCategoryId = req.params.subCategoryId;
         const page = parseInt(req.query.page) || 1;
-        const limit = 2;
+        const limit = 10;
         const offset = (page - 1) * limit;
         const [products] = await getProductBySubCategoryId(subCategoryId, offset, limit)
         if (!products.length) {
@@ -130,6 +131,39 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Products fetched!',
                 data: products
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
+exports.getProductByProductId = async (req, res, next) => {
+    try {
+        const productId = req.params.productId;
+        const [product] = await getProductByProductId(productId)
+        if (!product.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Products found.',
+                })
+            );
+        }
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Products fetched!',
+                data: product
             })
         );
     } catch (err) {
