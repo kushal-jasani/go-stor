@@ -8,8 +8,10 @@ router.get('/category', productController.getCategory);
 
 router.get('/sub-category/:categoryId', productController.getSubCategory);
 
-router.get('/products/category/:categoryId', productController.getProductsByCategoryId);
+router.get('/category/products/:categoryId', productController.getProductsByCategoryId);
 
-router.get('/products/subCategory/:subCategoryId', productController.getProductsBySubCategoryId);
+router.get('/subCategory/products/:subCategoryId', productController.getProductsBySubCategoryId);
+
+router.get('/product/:productId', productController.getProductByProductId);
 
 module.exports = router;
