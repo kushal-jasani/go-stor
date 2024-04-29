@@ -1,7 +1,7 @@
 const db = require('../util/db');
 
 const getStoreList = async () => {
-    let sql = `SELECT name, state, image FROM store`
+    let sql = `SELECT id, name, state, image FROM store`
     return await db.query(sql);
 }
 
