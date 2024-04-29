@@ -1,9 +1,18 @@
 const {
     getStoreList,
+    getStoreDetailByStoreId,
     getProductsByStoreId
 } = require('../repository/store');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
+
+const calculateDiscountOnMrp = (products) => {
+    products.map(product => {
+        discount_amount = product.product_MRP - product.product_selling_price
+        product.discount_amount = discount_amount
+        product.discount_percentage = parseInt((discount_amount / product.product_MRP) * 100) + "%";
+    })
+}
 
 exports.getStore = async (req, res, next) => {
     try {
@@ -43,6 +52,7 @@ exports.getProductsByStoreId = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
+        const [storeData] = await getStoreDetailByStoreId(storeId)
         const [products] = await getProductsByStoreId(storeId, offset, limit)
         if (!products.length) {
             return sendHttpResponse(req, res, next,
@@ -53,12 +63,17 @@ exports.getProductsByStoreId = async (req, res, next) => {
                 })
             );
         }
+        calculateDiscountOnMrp(products)
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: products
+                data: {
+                    storeData,
+                    products
+                }
             })
         );
     } catch (err) {

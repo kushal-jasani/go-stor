@@ -1,8 +1,15 @@
 const db = require('../util/db');
 
 const getStoreList = async () => {
-    let sql = `SELECT id, name, state, image FROM store`
+    let sql = `SELECT id, name, state, profile_image FROM store`
     return await db.query(sql);
+}
+
+const getStoreDetailByStoreId = async (storeId) => {
+    let sql = `SELECT id, name, state, image FROM store WHERE id = ?`
+
+    let params = [storeId]
+    return await db.query(sql, params);
 }
 
 const getProductsByStoreId = async (storeId, offset, limit) => {
@@ -28,5 +35,6 @@ const getProductsByStoreId = async (storeId, offset, limit) => {
 
 module.exports = {
     getStoreList,
+    getStoreDetailByStoreId,
     getProductsByStoreId
 };
