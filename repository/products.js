@@ -18,10 +18,10 @@ const getSubCategoryList = async (categoryId) => {
     return await db.query(sql, params);
 }
 
-const getProductByCategoryId = async (categoryId, offset, limit) => {
+const getProductsByCategoryId = async (categoryId, offset, limit) => {
     let sql = `SELECT
             p.id AS product_id,
-            p.product_name AS product_name,
+            p.product_name,
             (
                 SELECT i.image
                 FROM images i
@@ -39,10 +39,10 @@ const getProductByCategoryId = async (categoryId, offset, limit) => {
     return await db.query(sql, params);
 }
 
-const getProductBySubCategoryId = async (subCategoryId, offset, limit) => {
+const getProductsBySubCategoryId = async (subCategoryId, offset, limit) => {
     let sql = `SELECT
             p.id AS product_id,
-            p.product_name AS product_name,
+            p.product_name,
             (
                 SELECT i.image
                 FROM images i
@@ -90,10 +90,41 @@ const getProductByProductId = async (productId) => {
     return await db.query(sql, params);
 }
 
+const searchProductList = async (searchText) => {
+    let sql = `SELECT DISTINCT
+            p.id AS product_id,
+            p.product_name,
+            (
+                SELECT i.image
+                FROM images i
+                WHERE i.product_id = p.id
+                LIMIT 1
+            ) AS images,
+            p.MRP AS product_MRP,
+            p.selling_price AS product_selling_price
+        FROM products p
+        LEFT JOIN
+            subCategory s ON p.subcategory_id = s.id
+        JOIN
+            category c ON p.category_id = c.id
+        LEFT JOIN
+            specifications sp ON sp.product_id = p.id
+        WHERE
+            c.name LIKE ? OR
+            s.name LIKE ? OR
+            p.product_name LIKE ? OR
+            (sp.key = 'brand' AND sp.value LIKE ?)`
+
+    const searchParam = `%${searchText}%`;
+    let params = [searchParam, searchParam, searchParam, searchParam]
+    return await db.query(sql, params);
+}
+
 module.exports = {
     getCategoryList,
     getSubCategoryList,
-    getProductByCategoryId,
-    getProductBySubCategoryId,
-    getProductByProductId
+    getProductsByCategoryId,
+    getProductsBySubCategoryId,
+    getProductByProductId,
+    searchProductList
 };

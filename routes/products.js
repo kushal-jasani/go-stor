@@ -14,4 +14,6 @@ router.get('/subCategory/products/:subCategoryId', productController.getProducts
 
 router.get('/product/:productId', productController.getProductByProductId);
 
+router.get('/search', productController.search);
+
 module.exports = router;

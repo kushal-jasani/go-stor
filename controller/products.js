@@ -1,9 +1,10 @@
 const {
     getCategoryList,
     getSubCategoryList,
-    getProductByCategoryId,
-    getProductBySubCategoryId,
-    getProductByProductId
+    getProductsByCategoryId,
+    getProductsBySubCategoryId,
+    getProductByProductId,
+    searchProductList
 } = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -87,7 +88,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
-        const [products] = await getProductByCategoryId(categoryId, offset, limit)
+        const [products] = await getProductsByCategoryId(categoryId, offset, limit)
         if (!products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -125,7 +126,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
-        const [products] = await getProductBySubCategoryId(subCategoryId, offset, limit)
+        const [products] = await getProductsBySubCategoryId(subCategoryId, offset, limit)
         if (!products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -189,5 +190,32 @@ exports.getProductByProductId = async (req, res, next) => {
                 msg: "Internal server error"
             })
         );
+    }
+}
+
+exports.search = async (req, res, next) => {
+    try {
+        const searchText = req.body.searchText;
+        const [searchProducts] = await searchProductList(searchText)
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: 'success',
+                statusCode: 200,
+                msg: 'searching products successfully',
+                data: {
+                    searchProductList: searchProducts
+                }
+            })
+        )
+    }
+    catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: 'error',
+                statusCode: 500,
+                msg: 'internal server error'
+            })
+        )
     }
 }
