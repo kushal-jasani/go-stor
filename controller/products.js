@@ -4,7 +4,10 @@ const {
     getProductsByCategoryId,
     getProductsBySubCategoryId,
     getProductByProductId,
-    searchProductList
+    searchProductList,
+    // getBrandList,
+    getMaxPrice,
+    getOtherFilters
 } = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -217,5 +220,74 @@ exports.search = async (req, res, next) => {
                 msg: 'internal server error'
             })
         )
+    }
+}
+
+exports.showFilter = async (req, res, next) => {
+    try {
+        const { categoryId, subCategoryId } = req.body;
+
+        const [price] = await getMaxPrice({ categoryId, subCategoryId });
+        const priceFilter = { min_price: 0, max_price: price[0].max_price };
+
+        const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
+
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: 'success',
+                statusCode: 200,
+                msg: 'filter option showed successfully',
+                data: {
+                    "priceFilter": priceFilter,
+                    "otherFilters": otherFilters,
+                }
+            })
+        )
+    }
+    catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: 'error',
+                statusCode: 500,
+                msg: 'internal server error'
+            })
+        )
+    }
+}
+
+exports.filter = async (req, res, next) => {
+    let { searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter } = req.body;
+    try {
+        if (!priceOrderFilter) {
+            priceOrderFilter = "ASC";
+        }
+        const [products] = await filter({ userId: req.userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter });
+        if (!products || !products.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'No Product found for given category and price filter',
+                })
+            );
+        }
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Products fetched!',
+                data: products
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }

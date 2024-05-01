@@ -16,4 +16,6 @@ router.get('/product/:productId', productController.getProductByProductId);
 
 router.get('/search', productController.search);
 
+router.post('/get-filter', productController.showFilter);
+
 module.exports = router;

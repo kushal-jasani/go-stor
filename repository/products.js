@@ -120,11 +120,145 @@ const searchProductList = async (searchText) => {
     return await db.query(sql, params);
 }
 
+// const getBrandList = async ({ categoryId, subCategoryId }) => {
+//     let sql = `SELECT DISTINCT
+//             sp.value AS brand
+//         FROM specifications sp
+//         JOIN
+//             products p ON sp.product_id = p.id
+//         WHERE
+//             sp.key = 'brand'`
+
+//     let params = [];
+//     if (categoryId) {
+//         sql += ' AND p.category_id = ?';
+//         params.push(categoryId);
+//     } else if (subCategoryId) {
+//         sql += ' AND p.subcategory_id = ?';
+//         params.push(subCategoryId);
+//     }
+//     return await db.query(sql, params);
+// }
+
+const getMaxPrice = async ({ categoryId, subCategoryId }) => {
+    let sql = `SELECT
+            CASE
+                WHEN MAX(p.selling_price) < 10000 THEN '10000+'
+                ELSE CONCAT(CAST(FLOOR(MAX(p.selling_price) / 10000) * 10000 AS CHAR), '+')
+            END AS max_price
+        FROM 
+            products p`
+
+    let params = [];
+    if (categoryId) {
+        sql += ' WHERE p.category_id = ?';
+        params.push(categoryId);
+    } else if (subCategoryId) {
+        sql += ' WHERE p.subcategory_id = ?';
+        params.push(subCategoryId);
+    }
+    return await db.query(sql, params);
+}
+
+const getOtherFilters = async ({ categoryId, subCategoryId }) => {
+    let params = [];
+    let sql = `WITH SpecCount AS (
+            SELECT
+                sp.key AS spec_key,
+                COUNT(*) AS product_count
+            FROM
+                specifications sp
+            JOIN
+                products p ON sp.product_id = p.id
+            WHERE`
+    if (categoryId) {
+        sql += ` p.category_id = ?`
+        params.push(categoryId)
+    } else if (subCategoryId) {
+        sql += ` p.subcategory_id = ?`
+        params.push(subCategoryId)
+    }
+    sql += ` GROUP BY
+                sp.key
+        ),
+        
+        TotalProductCount AS (
+            SELECT
+                COUNT(*) AS total_count
+            FROM
+                products p
+            WHERE`
+    if (categoryId) {
+        sql += ` p.category_id = ?`
+        params.push(categoryId)
+    } else if (subCategoryId) {
+        sql += ` p.subcategory_id = ?`
+        params.push(subCategoryId)
+    }
+    sql += ` ),
+        
+        SpecPercentage AS (
+            SELECT
+                spec_key,
+                (product_count / (SELECT total_count FROM TotalProductCount)) * 100 AS percentage
+            FROM
+                SpecCount
+        ),
+        
+        FilteredSpec AS (
+            SELECT
+                spec_key
+            FROM
+                SpecPercentage
+            WHERE
+                percentage >= 91
+        ),
+        
+        SpecValues AS (
+            SELECT
+                fs.spec_key,
+                JSON_ARRAYAGG(spec_value) AS spec_values
+            FROM (
+                SELECT DISTINCT
+                    sp.key AS spec_key,
+                    sp.value AS spec_value
+                FROM
+                    specifications sp
+                JOIN
+                    products p ON sp.product_id = p.id
+                WHERE
+                    sp.key IN (SELECT spec_key FROM FilteredSpec) AND `
+    if (categoryId) {
+        sql += ` p.category_id = ?`
+        params.push(categoryId)
+    } else if (subCategoryId) {
+        sql += ` p.subcategory_id = ?`
+        params.push(subCategoryId)
+    }
+    sql += ` ) AS subquery
+            JOIN
+                FilteredSpec fs ON subquery.spec_key = fs.spec_key
+            GROUP BY
+                fs.spec_key
+        )
+        
+        SELECT
+            spec_key,
+            spec_values
+        FROM
+            SpecValues`
+
+    return await db.query(sql, params);
+}
+
 module.exports = {
     getCategoryList,
     getSubCategoryList,
     getProductsByCategoryId,
     getProductsBySubCategoryId,
     getProductByProductId,
-    searchProductList
+    searchProductList,
+    // getBrandList,
+    getMaxPrice,
+    getOtherFilters
 };
