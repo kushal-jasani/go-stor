@@ -1,21 +1,20 @@
 const db = require('../util/db');
 
 const getCategoryList = async () => {
-    let sql = `SELECT id, name, image FROM category`
-    return await db.query(sql);
-}
-
-const getSubCategoryList = async (categoryId) => {
     let sql = `SELECT
-            s.id,
+            c.id AS category_id,
             c.name AS category_name,
-            s.name AS subCategory_name
-        FROM subCategory s
-        JOIN category c ON s.category_id = c.id
-        WHERE category_id = ?`
-
-    let params = [categoryId]
-    return await db.query(sql, params);
+            c.image AS category_image,
+            CASE
+                WHEN COUNT(s.id) > 0 THEN
+                    JSON_ARRAYAGG(JSON_OBJECT('subcategory_id', s.id, 'subcategory_name', s.name))
+                ELSE
+                    NULL
+            END AS subcategories
+        FROM category c
+        LEFT JOIN subCategory s ON c.id = s.category_id
+        GROUP BY c.id, c.name, c.image`
+    return await db.query(sql);
 }
 
 const getProductsByCategoryId = async (categoryId, offset, limit) => {
@@ -339,7 +338,6 @@ const getOtherFilters = async ({ categoryId, subCategoryId }) => {
 
 module.exports = {
     getCategoryList,
-    getSubCategoryList,
     getProductsByCategoryId,
     getProductsBySubCategoryId,
     getProductByProductId,

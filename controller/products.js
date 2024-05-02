@@ -1,6 +1,5 @@
 const {
     getCategoryList,
-    getSubCategoryList,
     getProductsByCategoryId,
     getProductsBySubCategoryId,
     getProductByProductId,
@@ -39,39 +38,6 @@ exports.getCategory = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'category fetched!',
                 data: categoryList
-            })
-        );
-    } catch (err) {
-        console.log(err);
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 500,
-                msg: "Internal server error"
-            })
-        );
-    }
-}
-
-exports.getSubCategory = async (req, res, next) => {
-    try {
-        const categoryId = req.params.categoryId;
-        const [subCategoryList] = await getSubCategoryList(categoryId)
-        if (!subCategoryList.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Sub Category found.',
-                })
-            );
-        }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'sub-category fetched!',
-                data: subCategoryList
             })
         );
     } catch (err) {
