@@ -12,7 +12,7 @@ router.get('/subCategory/products/:subCategoryId', productController.getProducts
 
 router.get('/product/:productId', productController.getProductByProductId);
 
-router.get('/search', productController.search);
+router.post('/search', productController.search);
 
 router.post('/get-filter', productController.showFilter);
 
