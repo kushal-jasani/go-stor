@@ -164,7 +164,7 @@ const filterBySearch = async (productId) => {
                 FROM
                     SpecPercentage
                 WHERE
-                    percentage >= 10
+                    percentage >= 50
             ),
             
             SpecValues AS (
@@ -296,7 +296,7 @@ const getOtherFilters = async ({ categoryId, subCategoryId }) => {
             FROM
                 SpecPercentage
             WHERE
-                percentage >= 91
+                percentage >= 75
         ),
         
         SpecValues AS (

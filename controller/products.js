@@ -55,9 +55,15 @@ exports.getCategory = async (req, res, next) => {
 exports.getProductsByCategoryId = async (req, res, next) => {
     try {
         const categoryId = req.params.categoryId;
+        const subCategoryId = undefined;
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
+
+        const [price] = await getMaxPrice({ categoryId, subCategoryId });
+        const priceFilter = { min_price: 0, max_price: price[0].max_price };
+        const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
+
         const [products] = await getProductsByCategoryId(categoryId, offset, limit)
         if (!products.length) {
             return sendHttpResponse(req, res, next,
@@ -75,7 +81,13 @@ exports.getProductsByCategoryId = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: products
+                data: {
+                    products,
+                    filters: {
+                        priceFilter,
+                        otherFilters
+                    }
+                }
             })
         );
     } catch (err) {
@@ -93,9 +105,15 @@ exports.getProductsByCategoryId = async (req, res, next) => {
 exports.getProductsBySubCategoryId = async (req, res, next) => {
     try {
         const subCategoryId = req.params.subCategoryId;
+        const categoryId = undefined;
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
+
+        const [price] = await getMaxPrice({ categoryId, subCategoryId });
+        const priceFilter = { min_price: 0, max_price: price[0].max_price };
+        const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
+
         const [products] = await getProductsBySubCategoryId(subCategoryId, offset, limit)
         if (!products.length) {
             return sendHttpResponse(req, res, next,
@@ -113,7 +131,13 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: products
+                data: {
+                    products,
+                    filters: {
+                        priceFilter,
+                        otherFilters
+                    }
+                }
             })
         );
     } catch (err) {
@@ -188,39 +212,6 @@ exports.search = async (req, res, next) => {
                 data: {
                     searchProductList: searchProducts,
                     filters
-                }
-            })
-        )
-    }
-    catch (err) {
-        console.log(err);
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: 'error',
-                statusCode: 500,
-                msg: 'internal server error'
-            })
-        )
-    }
-}
-
-exports.showFilter = async (req, res, next) => {
-    try {
-        const { categoryId, subCategoryId } = req.body;
-
-        const [price] = await getMaxPrice({ categoryId, subCategoryId });
-        const priceFilter = { min_price: 0, max_price: price[0].max_price };
-
-        const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
-
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: 'success',
-                statusCode: 200,
-                msg: 'filter option showed successfully',
-                data: {
-                    "priceFilter": priceFilter,
-                    "otherFilters": otherFilters,
                 }
             })
         )
