@@ -111,6 +111,8 @@ exports.verifyRegisterOTP = async (req, res, next) => {
     }
     if (varificationresponse.isOTPVerified === true) {
       const [userResults] = await insertUser(name, email, phoneno, referral);
+      const accessToken = generateAccessToken(userResults.insertId);
+      const refreshToken = generateRefreshToken(userResults.insertId);
       return sendHttpResponse(
         req,
         res,
@@ -119,6 +121,9 @@ exports.verifyRegisterOTP = async (req, res, next) => {
           statusCode: 201,
           status: "success",
           msg: "User registerd successfully✅",
+          data: {
+            JWTToken: { accessToken, refreshToken },
+          }
         })
       );
     }
@@ -259,7 +264,7 @@ exports.varifyLoginOTP = async (req, res, next) => {
           msg: "You're loggedin successfully🥳",
           data: {
             JWTToken: { accessToken, refreshToken },
-          },
+          }
         })
       );
     }

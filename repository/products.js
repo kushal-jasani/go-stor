@@ -120,6 +120,88 @@ const searchProductList = async (searchText) => {
     return await db.query(sql, params);
 }
 
+const filterBySearch = async (productId) => {
+    let params = [];
+    let sql = `WITH SpecCount AS (
+                SELECT
+                    sp.key AS spec_key,
+                    COUNT(*) AS product_count
+                FROM
+                    specifications sp
+                JOIN
+                    products p ON sp.product_id = p.id
+                WHERE`
+    if (productId) {
+        sql += ` p.id IN (?)`
+        params.push(productId)
+    }
+    sql += ` GROUP BY
+                    sp.key
+            ),
+            
+            TotalProductCount AS (
+                SELECT
+                    COUNT(*) AS total_count
+                FROM
+                    products p
+                WHERE`
+    if (productId) {
+        sql += ` p.id IN (?)`
+        params.push(productId)
+    }
+    sql += ` ),
+            
+            SpecPercentage AS (
+                SELECT
+                    spec_key,
+                    (product_count / (SELECT total_count FROM TotalProductCount)) * 100 AS percentage
+                FROM
+                    SpecCount
+            ),
+            
+            FilteredSpec AS (
+                SELECT
+                    spec_key
+                FROM
+                    SpecPercentage
+                WHERE
+                    percentage >= 10
+            ),
+            
+            SpecValues AS (
+                SELECT
+                    fs.spec_key,
+                    JSON_ARRAYAGG(spec_value) AS spec_values
+                FROM (
+                    SELECT DISTINCT
+                        sp.key AS spec_key,
+                        sp.value AS spec_value
+                    FROM
+                        specifications sp
+                    JOIN
+                        products p ON sp.product_id = p.id
+                    WHERE
+                        sp.key IN (SELECT spec_key FROM FilteredSpec) AND `
+    if (productId) {
+        sql += ` p.id IN (?)`
+        params.push(productId)
+    }
+    sql += ` ) AS subquery
+                JOIN
+                    FilteredSpec fs ON subquery.spec_key = fs.spec_key
+                GROUP BY
+                    fs.spec_key
+            )
+            
+            SELECT
+                spec_key,
+                spec_values
+            FROM
+                SpecValues`
+
+    return await db.query(sql, params);
+}
+
 // const getBrandList = async ({ categoryId, subCategoryId }) => {
 //     let sql = `SELECT DISTINCT
 //             sp.value AS brand
@@ -140,7 +222,7 @@ const searchProductList = async (searchText) => {
 //     return await db.query(sql, params);
 // }
 
-const getMaxPrice = async ({ categoryId, subCategoryId }) => {
+const getMaxPrice = async ({ categoryId, subCategoryId, productId }) => {
     let sql = `SELECT
             CASE
                 WHEN MAX(p.selling_price) < 10000 THEN '10000+'
@@ -148,6 +230,10 @@ const getMaxPrice = async ({ categoryId, subCategoryId }) => {
             END AS max_price
         FROM 
             products p`
+    if (productId) {
+        sql += ` WHERE p.id IN ?`
+        params.push(productId);
+    }
 
     let params = [];
     if (categoryId) {
@@ -258,6 +344,7 @@ module.exports = {
     getProductsBySubCategoryId,
     getProductByProductId,
     searchProductList,
+    filterBySearch,
     // getBrandList,
     getMaxPrice,
     getOtherFilters

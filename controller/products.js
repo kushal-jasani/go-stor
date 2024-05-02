@@ -5,6 +5,7 @@ const {
     getProductsBySubCategoryId,
     getProductByProductId,
     searchProductList,
+    filterBySearch,
     // getBrandList,
     getMaxPrice,
     getOtherFilters
@@ -200,13 +201,27 @@ exports.search = async (req, res, next) => {
     try {
         const searchText = req.body.searchText;
         const [searchProducts] = await searchProductList(searchText)
+
+        let productId = [];
+        searchProducts.forEach(product => {
+            productId.push(product.product_id)
+        })
+        const [price] = await getMaxPrice(productId);
+        const priceFilter = { min_price: 0, max_price: price[0].max_price };
+        const [otherFilters] = await filterBySearch(productId)
+
+        let filters = {
+            priceFilter,
+            otherFilters: otherFilters
+        }
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: 'success',
                 statusCode: 200,
                 msg: 'searching products successfully',
                 data: {
-                    searchProductList: searchProducts
+                    searchProductList: searchProducts,
+                    filters
                 }
             })
         )
