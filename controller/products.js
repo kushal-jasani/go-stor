@@ -198,11 +198,15 @@ exports.search = async (req, res, next) => {
         })
         const [price] = await getMaxPrice(productId);
         const priceFilter = { min_price: 0, max_price: price[0].max_price };
-        const [otherFilters] = await filterBySearch(productId)
+        
+        let otherFilters
+        if (productId.length) {
+            [otherFilters] = await filterBySearch(productId)
+        }
 
         let filters = {
             priceFilter,
-            otherFilters: otherFilters
+            otherFilters
         }
         return sendHttpResponse(req, res, next,
             generateResponse({
