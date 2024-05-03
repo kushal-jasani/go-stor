@@ -17,8 +17,8 @@ const getCategoryList = async () => {
     return await db.query(sql);
 }
 
-const getProductsByCategoryId = async (categoryId, offset, limit) => {
-    let sql = `SELECT
+const getProductsByCategoryId = async (categoryId, parsedPriceFilter, parsedOtherFilter, offset, limit) => {
+    let sql = `SELECT DISTINCT
             p.id AS product_id,
             p.product_name,
             (
@@ -30,16 +30,50 @@ const getProductsByCategoryId = async (categoryId, offset, limit) => {
             p.MRP AS product_MRP,
             p.selling_price AS product_selling_price
         FROM
-            products p
-        WHERE p.category_id = ?
-        LIMIT ?, ?`
+            products p`;
 
-    let params = [categoryId, offset, limit]
+    let params = [];
+
+    // Check if other filters are provided
+    if (parsedOtherFilter) {
+        let joinConditions = [];
+        let joinParams = [];
+
+        Object.entries(parsedOtherFilter).forEach(([key, values]) => {
+            // Ensure values is an array
+            if (!Array.isArray(values)) return;
+
+            // Construct the JOIN conditions
+            joinConditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
+            joinParams.push(key, ...values);
+        });
+
+        // Add the JOIN clause
+        if (joinConditions.length > 0) {
+            sql += ` INNER JOIN specifications sp ON p.id = sp.product_id AND (${joinConditions.join(' OR ')})`;
+            params.push(...joinParams);
+        }
+    }
+
+    // Add WHERE clause for category filter
+    sql += ` WHERE p.category_id = ?`;
+    params.push(categoryId);
+
+    // Add price filter conditions
+    if (parsedPriceFilter && parsedPriceFilter.minPrice !== undefined && parsedPriceFilter.maxPrice !== undefined) {
+        sql += ` AND p.selling_price BETWEEN ? AND ?`;
+        params.push(parsedPriceFilter.minPrice, parsedPriceFilter.maxPrice);
+    }
+
+    // Add LIMIT and OFFSET
+    sql += ` LIMIT ?, ?`;
+    params.push(offset, limit);
+    console.log(sql, params)
     return await db.query(sql, params);
 }
 
-const getProductsBySubCategoryId = async (subCategoryId, offset, limit) => {
-    let sql = `SELECT
+const getProductsBySubCategoryId = async (subCategoryId, parsedPriceFilter, parsedOtherFilter, offset, limit) => {
+    let sql = `SELECT DISTINCT
             p.id AS product_id,
             p.product_name,
             (
@@ -50,11 +84,46 @@ const getProductsBySubCategoryId = async (subCategoryId, offset, limit) => {
             ) AS images,
             p.MRP AS product_MRP,
             p.selling_price AS product_selling_price
-        FROM products p
-        WHERE p.subcategory_id = ?
-        LIMIT ?, ?`
+        FROM
+            products p`;
 
-    let params = [subCategoryId, offset, limit]
+    let params = [];
+
+    // Check if other filters are provided
+    if (parsedOtherFilter) {
+        let joinConditions = [];
+        let joinParams = [];
+
+        Object.entries(parsedOtherFilter).forEach(([key, values]) => {
+            // Ensure values is an array
+            if (!Array.isArray(values)) return;
+
+            // Construct the JOIN conditions
+            joinConditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
+            joinParams.push(key, ...values);
+        });
+
+        // Add the JOIN clause
+        if (joinConditions.length > 0) {
+            sql += ` INNER JOIN specifications sp ON p.id = sp.product_id AND (${joinConditions.join(' OR ')})`;
+            params.push(...joinParams);
+        }
+    }
+
+    // Add WHERE clause for category filter
+    sql += ` WHERE p.subcategory_id = ?`;
+    params.push(subCategoryId);
+
+    // Add price filter conditions
+    if (parsedPriceFilter && parsedPriceFilter.minPrice !== undefined && parsedPriceFilter.maxPrice !== undefined) {
+        sql += ` AND p.selling_price BETWEEN ? AND ?`;
+        params.push(parsedPriceFilter.minPrice, parsedPriceFilter.maxPrice);
+    }
+
+    // Add LIMIT and OFFSET
+    sql += ` LIMIT ?, ?`;
+    params.push(offset, limit);
+    console.log(sql, params)
     return await db.query(sql, params);
 }
 

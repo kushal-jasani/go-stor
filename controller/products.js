@@ -55,25 +55,25 @@ exports.getCategory = async (req, res, next) => {
 exports.getProductsByCategoryId = async (req, res, next) => {
     try {
         const categoryId = req.params.categoryId;
+        let { priceFilter, others } = req.query;
+        let parsedPriceFilter, parsedOtherFilter;
+        try {
+            parsedPriceFilter = priceFilter ? JSON.parse(priceFilter) : undefined;
+            parsedOtherFilter = others ? JSON.parse(others) : undefined;
+        } catch (error) {
+            console.error('Error parsing filters: ', error);
+        }
+
         const subCategoryId = undefined;
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
 
-        const [price] = await getMaxPrice({ categoryId, subCategoryId });
-        const priceFilter = { min_price: 0, max_price: price[0].max_price };
+        const [maxPrice] = await getMaxPrice({ categoryId, subCategoryId });
+        const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
         const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
 
-        const [products] = await getProductsByCategoryId(categoryId, offset, limit)
-        if (!products.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Products found.',
-                })
-            );
-        }
+        const [products] = await getProductsByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, offset, limit)
         calculateDiscountOnMrp(products)
 
         return sendHttpResponse(req, res, next,
@@ -82,9 +82,9 @@ exports.getProductsByCategoryId = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Products fetched!',
                 data: {
-                    products,
+                    products: products.length ? products : `No products found`,
                     filters: {
-                        priceFilter,
+                        priceFilter1,
                         otherFilters
                     }
                 }
@@ -105,25 +105,25 @@ exports.getProductsByCategoryId = async (req, res, next) => {
 exports.getProductsBySubCategoryId = async (req, res, next) => {
     try {
         const subCategoryId = req.params.subCategoryId;
+        let { priceFilter, others } = req.query;
+        let parsedPriceFilter, parsedOtherFilter;
+        try {
+            parsedPriceFilter = priceFilter ? JSON.parse(priceFilter) : undefined;
+            parsedOtherFilter = others ? JSON.parse(others) : undefined;
+        } catch (error) {
+            console.error('Error parsing filters: ', error);
+        }
+
         const categoryId = undefined;
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
 
-        const [price] = await getMaxPrice({ categoryId, subCategoryId });
-        const priceFilter = { min_price: 0, max_price: price[0].max_price };
+        const [maxPrice] = await getMaxPrice({ categoryId, subCategoryId });
+        const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
         const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
 
-        const [products] = await getProductsBySubCategoryId(subCategoryId, offset, limit)
-        if (!products.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Products found.',
-                })
-            );
-        }
+        const [products] = await getProductsBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, offset, limit)
         calculateDiscountOnMrp(products)
 
         return sendHttpResponse(req, res, next,
@@ -132,9 +132,9 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Products fetched!',
                 data: {
-                    products,
+                    products: products.length ? products : `No products found`,
                     filters: {
-                        priceFilter,
+                        priceFilter1,
                         otherFilters
                     }
                 }
@@ -191,14 +191,15 @@ exports.search = async (req, res, next) => {
     try {
         const searchText = req.body.searchText;
         const [searchProducts] = await searchProductList(searchText)
+        calculateDiscountOnMrp(searchProducts)
 
         let productId = [];
         searchProducts.forEach(product => {
             productId.push(product.product_id)
         })
         const [price] = await getMaxPrice(productId);
-        const priceFilter = { min_price: 0, max_price: price[0].max_price };
-        
+        const priceFilter = { min_price: 'min', max_price: price[0].max_price };
+
         let otherFilters
         if (productId.length) {
             [otherFilters] = await filterBySearch(productId)
