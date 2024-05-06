@@ -110,7 +110,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
 exports.getProductsBySubCategoryId = async (req, res, next) => {
     try {
         const subCategoryId = req.params.subCategoryId;
-        let { priceFilter, others } = req.query;
+        let { priceFilter, others, sortBy } = req.query;
         let parsedPriceFilter, parsedOtherFilter;
         try {
             parsedPriceFilter = priceFilter ? JSON.parse(priceFilter) : undefined;
@@ -129,8 +129,8 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
         const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
 
-        const [products] = await getProductsBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, offset, limit)
-        calculateDiscountOnMrp(products)
+        const [products] = await getProductsBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
+        // calculateDiscountOnMrp(products)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -172,7 +172,7 @@ exports.getProductByProductId = async (req, res, next) => {
                 })
             );
         }
-        calculateDiscountOnMrp(product)
+        // calculateDiscountOnMrp(product)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -196,7 +196,7 @@ exports.getProductByProductId = async (req, res, next) => {
 
 exports.search = async (req, res, next) => {
     try {
-        let { searchText, priceFilter, others } = req.query;
+        let { searchText, priceFilter, others, sortBy } = req.query;
         let parsedPriceFilter, parsedOtherFilter;
         try {
             parsedPriceFilter = priceFilter ? JSON.parse(priceFilter) : undefined;
@@ -204,8 +204,8 @@ exports.search = async (req, res, next) => {
         } catch (error) {
             console.error('Error parsing filters: ', error);
         }
-        const [searchProducts] = await searchProductList(searchText, parsedPriceFilter, parsedOtherFilter)
-        calculateDiscountOnMrp(searchProducts)
+        const [searchProducts] = await searchProductList(searchText, parsedPriceFilter, parsedOtherFilter, sortBy)
+        // calculateDiscountOnMrp(searchProducts)
 
         let productId = [];
         searchProducts.forEach(product => {
