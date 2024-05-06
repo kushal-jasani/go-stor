@@ -217,7 +217,14 @@ const searchProductList = async (searchText, parsedPriceFilter, parsedOtherFilte
         JOIN
             category c ON p.category_id = c.id
         LEFT JOIN
-            specifications sp ON sp.product_id = p.id`
+            specifications sp ON sp.product_id = p.id
+        WHERE
+            (c.name LIKE ? OR
+            s.name LIKE ? OR
+            p.product_name LIKE ? OR
+            (sp.key = 'brand' AND sp.value LIKE ?))`
+    const searchParam = `%${searchText}%`;
+    params.push(searchParam, searchParam, searchParam, searchParam)
 
     if (parsedOtherFilter) {
         let joinConditions = [];
@@ -246,14 +253,6 @@ const searchProductList = async (searchText, parsedPriceFilter, parsedOtherFilte
         sql += ` AND p.selling_price BETWEEN ? AND ?`;
         params.push(parsedPriceFilter.minPrice, parsedPriceFilter.maxPrice);
     }
-
-    sql += ` WHERE
-    c.name LIKE ? OR
-    s.name LIKE ? OR
-    p.product_name LIKE ? OR
-    (sp.key = 'brand' AND sp.value LIKE ?)`
-    const searchParam = `%${searchText}%`;
-    params.push(searchParam, searchParam, searchParam, searchParam)
 
     // Add sorting
     switch (sortBy) {
