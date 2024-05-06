@@ -4,10 +4,13 @@ const {
     getProductsBySubCategoryId,
     getProductByProductId,
     searchProductList,
+    categoryFilter,
     filterBySearch,
     // getBrandList,
     getMaxPrice,
-    getOtherFilters
+    getOtherFilters,
+    getCategoryName,
+    getSubCategoryName
 } = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -69,6 +72,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
         const limit = 10;
         const offset = (page - 1) * limit;
 
+        const [categoryName] = await getCategoryName(categoryId);
         const [maxPrice] = await getMaxPrice({ categoryId, subCategoryId });
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
         const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
@@ -82,6 +86,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Products fetched!',
                 data: {
+                    category_name: categoryName[0].name,
                     products: products.length ? products : `No products found`,
                     filters: {
                         priceFilter1,
@@ -119,6 +124,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
         const limit = 10;
         const offset = (page - 1) * limit;
 
+        const [subCategoryName] = await getSubCategoryName(subCategoryId);
         const [maxPrice] = await getMaxPrice({ categoryId, subCategoryId });
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
         const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
@@ -132,6 +138,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Products fetched!',
                 data: {
+                    subcategory_name: subCategoryName[0].name,
                     products: products.length ? products : `No products found`,
                     filters: {
                         priceFilter1,
@@ -189,34 +196,42 @@ exports.getProductByProductId = async (req, res, next) => {
 
 exports.search = async (req, res, next) => {
     try {
-        const searchText = req.body.searchText;
-        const [searchProducts] = await searchProductList(searchText)
+        let { searchText, priceFilter, others } = req.query;
+        let parsedPriceFilter, parsedOtherFilter;
+        try {
+            parsedPriceFilter = priceFilter ? JSON.parse(priceFilter) : undefined;
+            parsedOtherFilter = others ? JSON.parse(others) : undefined;
+        } catch (error) {
+            console.error('Error parsing filters: ', error);
+        }
+        const [searchProducts] = await searchProductList(searchText, parsedPriceFilter, parsedOtherFilter)
         calculateDiscountOnMrp(searchProducts)
 
         let productId = [];
         searchProducts.forEach(product => {
             productId.push(product.product_id)
         })
+        const [category] = await categoryFilter(productId);
         const [price] = await getMaxPrice(productId);
-        const priceFilter = { min_price: 'min', max_price: price[0].max_price };
+        const priceFilter1 = { min_price: 0, max_price: price[0].max_price };
 
         let otherFilters
         if (productId.length) {
             [otherFilters] = await filterBySearch(productId)
         }
 
-        let filters = {
-            priceFilter,
-            otherFilters
-        }
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: 'success',
                 statusCode: 200,
                 msg: 'searching products successfully',
                 data: {
-                    searchProductList: searchProducts,
-                    filters
+                    searchProductList: searchProducts.length ? searchProducts : `No products found`,
+                    filters: {
+                        categoryFilter: category.length > 1 ? category : undefined,
+                        priceFilter1,
+                        otherFilters
+                    }
                 }
             })
         )

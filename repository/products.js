@@ -43,9 +43,11 @@ const getProductsByCategoryId = async (categoryId, parsedPriceFilter, parsedOthe
             // Ensure values is an array
             if (!Array.isArray(values)) return;
 
-            // Construct the JOIN conditions
-            joinConditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
-            joinParams.push(key, ...values);
+            if (values.length) {
+                // Construct the JOIN conditions
+                joinConditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
+                joinParams.push(key, ...values);
+            }
         });
 
         // Add the JOIN clause
@@ -98,9 +100,11 @@ const getProductsBySubCategoryId = async (subCategoryId, parsedPriceFilter, pars
             // Ensure values is an array
             if (!Array.isArray(values)) return;
 
-            // Construct the JOIN conditions
-            joinConditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
-            joinParams.push(key, ...values);
+            if (values.length) {
+                // Construct the JOIN conditions
+                joinConditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
+                joinParams.push(key, ...values);
+            }
         });
 
         // Add the JOIN clause
@@ -158,7 +162,8 @@ const getProductByProductId = async (productId) => {
     return await db.query(sql, params);
 }
 
-const searchProductList = async (searchText) => {
+const searchProductList = async (searchText, parsedPriceFilter, parsedOtherFilter) => {
+    let params = [];
     let sql = `SELECT DISTINCT
             p.id AS product_id,
             p.product_name,
@@ -176,15 +181,60 @@ const searchProductList = async (searchText) => {
         JOIN
             category c ON p.category_id = c.id
         LEFT JOIN
-            specifications sp ON sp.product_id = p.id
-        WHERE
-            c.name LIKE ? OR
-            s.name LIKE ? OR
-            p.product_name LIKE ? OR
-            (sp.key = 'brand' AND sp.value LIKE ?)`
+            specifications sp ON sp.product_id = p.id`
 
+    if (parsedOtherFilter) {
+        let joinConditions = [];
+        let joinParams = [];
+
+        Object.entries(parsedOtherFilter).forEach(([key, values]) => {
+            // Ensure values is an array
+            if (!Array.isArray(values)) return;
+
+            if (values.length) {
+                // Construct the JOIN conditions
+                joinConditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
+                joinParams.push(key, ...values);
+            }
+        });
+
+        // Add the JOIN clause
+        if (joinConditions.length > 0) {
+            sql += ` AND (${joinConditions.join(' OR ')})`;
+            params.push(...joinParams);
+        }
+    }
+
+    // Add price filter conditions
+    if (parsedPriceFilter && parsedPriceFilter.minPrice !== undefined && parsedPriceFilter.maxPrice !== undefined) {
+        sql += ` AND p.selling_price BETWEEN ? AND ?`;
+        params.push(parsedPriceFilter.minPrice, parsedPriceFilter.maxPrice);
+    }
+
+    sql += ` WHERE
+    c.name LIKE ? OR
+    s.name LIKE ? OR
+    p.product_name LIKE ? OR
+    (sp.key = 'brand' AND sp.value LIKE ?)`
     const searchParam = `%${searchText}%`;
-    let params = [searchParam, searchParam, searchParam, searchParam]
+    params.push(searchParam, searchParam, searchParam, searchParam)
+
+    return await db.query(sql, params);
+}
+
+const categoryFilter = async (productId) => {
+    let sql = `SELECT DISTINCT
+            CASE 
+                WHEN s.id IS NOT NULL THEN JSON_OBJECT('subcategory_id', sc.id, 'subcategory_name', sc.name)
+                ELSE JSON_OBJECT('category_id', c.id, 'category_name', c.name)
+            END AS category
+        FROM products p
+        LEFT JOIN subCategory sc ON p.subcategory_id = sc.id
+        JOIN category c ON p.category_id = c.id
+        LEFT JOIN subCategory s ON c.id = s.category_id
+        WHERE p.id IN (?)`
+
+    params = [productId]
     return await db.query(sql, params);
 }
 
@@ -405,14 +455,31 @@ const getOtherFilters = async ({ categoryId, subCategoryId }) => {
     return await db.query(sql, params);
 }
 
+const getCategoryName = async (categoryId) => {
+    let sql = `SELECT name FROM category WHERE id = ?`
+
+    let params = [categoryId];
+    return await db.query(sql, params);
+}
+
+const getSubCategoryName = async (subCategoryId) => {
+    let sql = `SELECT name FROM subcategory WHERE id = ?`
+
+    let params = [subCategoryId];
+    return await db.query(sql, params);
+}
+
 module.exports = {
     getCategoryList,
     getProductsByCategoryId,
     getProductsBySubCategoryId,
     getProductByProductId,
     searchProductList,
+    categoryFilter,
     filterBySearch,
     // getBrandList,
     getMaxPrice,
-    getOtherFilters
+    getOtherFilters,
+    getCategoryName,
+    getSubCategoryName
 };
