@@ -27,6 +27,7 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.9.7",
-    "otpless-node-js-auth-sdk": "^1.0.8"
+    "otpless-node-js-auth-sdk": "^1.0.8",
+    "stripe": "^15.5.0"
   }
 }
