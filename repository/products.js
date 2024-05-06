@@ -514,7 +514,7 @@ const getCategoryName = async (categoryId) => {
 }
 
 const getSubCategoryName = async (subCategoryId) => {
-    let sql = `SELECT name FROM subcategory WHERE id = ?`
+    let sql = `SELECT name FROM subCategory WHERE id = ?`
 
     let params = [subCategoryId];
     return await db.query(sql, params);
