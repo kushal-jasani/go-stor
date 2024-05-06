@@ -15,14 +15,6 @@ const {
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
-const calculateDiscountOnMrp = (products) => {
-    products.map(product => {
-        discount_amount = product.product_MRP - product.product_selling_price
-        product.discount_amount = discount_amount
-        product.discount_percentage = parseInt((discount_amount / product.product_MRP) * 100) + "%";
-    })
-}
-
 exports.getCategory = async (req, res, next) => {
     try {
         const [categoryList] = await getCategoryList()
@@ -78,7 +70,6 @@ exports.getProductsByCategoryId = async (req, res, next) => {
         const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
 
         const [products] = await getProductsByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
-        // calculateDiscountOnMrp(products)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -130,7 +121,6 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
         const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
 
         const [products] = await getProductsBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
-        // calculateDiscountOnMrp(products)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -172,7 +162,6 @@ exports.getProductByProductId = async (req, res, next) => {
                 })
             );
         }
-        // calculateDiscountOnMrp(product)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -205,7 +194,6 @@ exports.search = async (req, res, next) => {
             console.error('Error parsing filters: ', error);
         }
         const [searchProducts] = await searchProductList(searchText, parsedPriceFilter, parsedOtherFilter, sortBy)
-        // calculateDiscountOnMrp(searchProducts)
 
         let productId = [];
         searchProducts.forEach(product => {
