@@ -343,8 +343,8 @@ const filterBySearch = async (productId) => {
 const getMaxPrice = async ({ categoryId, subCategoryId, productId }) => {
     let sql = `SELECT
             CASE
-                WHEN MAX(p.selling_price) < 10000 THEN '10000+'
-                ELSE CONCAT(CAST(FLOOR(MAX(p.selling_price) / 10000) * 10000 AS CHAR), '+')
+                WHEN MAX(p.selling_price) < 10000 THEN '10000'
+                ELSE FLOOR(MAX(p.selling_price) / 10000) * 10000
             END AS max_price
         FROM 
             products p`
