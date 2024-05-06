@@ -58,7 +58,7 @@ exports.getCategory = async (req, res, next) => {
 exports.getProductsByCategoryId = async (req, res, next) => {
     try {
         const categoryId = req.params.categoryId;
-        let { priceFilter, others } = req.query;
+        let { priceFilter, others, sortBy } = req.query;
         let parsedPriceFilter, parsedOtherFilter;
         try {
             parsedPriceFilter = priceFilter ? JSON.parse(priceFilter) : undefined;
@@ -77,8 +77,8 @@ exports.getProductsByCategoryId = async (req, res, next) => {
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
         const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
 
-        const [products] = await getProductsByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, offset, limit)
-        calculateDiscountOnMrp(products)
+        const [products] = await getProductsByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
+        // calculateDiscountOnMrp(products)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -211,12 +211,13 @@ exports.search = async (req, res, next) => {
         searchProducts.forEach(product => {
             productId.push(product.product_id)
         })
-        const [category] = await categoryFilter(productId);
+
         const [price] = await getMaxPrice(productId);
         const priceFilter1 = { min_price: 0, max_price: price[0].max_price };
 
-        let otherFilters
+        let otherFilters, category;
         if (productId.length) {
+            [category] = await categoryFilter(productId);
             [otherFilters] = await filterBySearch(productId)
         }
 
@@ -228,7 +229,7 @@ exports.search = async (req, res, next) => {
                 data: {
                     searchProductList: searchProducts.length ? searchProducts : `No products found`,
                     filters: {
-                        categoryFilter: category.length > 1 ? category : undefined,
+                        categoryFilter: (category && (category.length > 1)) ? category : undefined,
                         priceFilter1,
                         otherFilters
                     }

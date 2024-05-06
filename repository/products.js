@@ -17,7 +17,7 @@ const getCategoryList = async () => {
     return await db.query(sql);
 }
 
-const getProductsByCategoryId = async (categoryId, parsedPriceFilter, parsedOtherFilter, offset, limit) => {
+const getProductsByCategoryId = async (categoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit) => {
     let sql = `SELECT DISTINCT
             p.id AS product_id,
             p.product_name,
