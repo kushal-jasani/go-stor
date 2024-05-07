@@ -7,11 +7,29 @@ const insertAddress = async ({ user_id, name, mobileNumber, email, address, pinC
     return await db.query(sql, params)
 }
 
+const insertOrderAddress = async (addressDetail) => {
+    const { name, mobile_number, email, address, pin_code } = addressDetail
+    let sql = `INSERT INTO orderAddress SET ?`
+
+    let params = { name, mobile_number, email, address, pin_code }
+    return await db.query(sql, params)
+}
+
 const getAddress = async (key) => {
     const keys = Object.keys(key);
     const values = Object.values(key);
 
     let sql = `SELECT id, name, mobile_number, email, address, pin_code FROM address WHERE `;
+    sql += keys.map(key => `${key} = ?`).join(' AND ');
+
+    return await db.query(sql, values);
+}
+
+const getUserIdByAddress = async (key) => {
+    const keys = Object.keys(key);
+    const values = Object.values(key);
+
+    let sql = `SELECT user_id FROM address WHERE `;
     sql += keys.map(key => `${key} = ?`).join(' AND ');
 
     return await db.query(sql, values);
@@ -26,6 +44,8 @@ const deleteAddress = async ({ userId, address_id }) => {
 
 module.exports = {
     insertAddress,
+    insertOrderAddress,
     getAddress,
+    getUserIdByAddress,
     deleteAddress
 };

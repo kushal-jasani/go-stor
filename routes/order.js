@@ -7,6 +7,10 @@ const router = express.Router();
 
 router.post('/order-summary', isAuth, orderController.getOrderSummary);
 
-router.post('/post-order', isAuth, orderController.postOrder);
+router.post('/checkout', isAuth, orderController.getCheckout);
+
+router.post('/checkout/success', isAuth, orderController.getCheckoutSuccess);
+
+router.post('/checkout/cancel', isAuth, orderController.getCheckout);
 
 module.exports = router;
