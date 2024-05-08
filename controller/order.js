@@ -26,11 +26,18 @@ function generateInvoiceNumber() {
 
 exports.getOrderSummary = async (req, res, next) => {
     try {
-        const { products } = req.body;
+        const { products } = req.query;
+
+        let parsedProducts;
+        try {
+            parsedProducts = JSON.parse(products);
+        } catch (error) {
+            console.error('Error parsing filters: ', error);
+        }
 
         let order_sub_total = 0, item_count = 0;
         await Promise.all(
-            products.map(async (product) => {
+            parsedProducts.map(async (product) => {
                 const [productDetail] = await getProductByProductId(product.id)
 
                 item_count += 1;

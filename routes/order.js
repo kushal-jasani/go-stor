@@ -5,7 +5,7 @@ const { isAuth } = require('../middleware/is-auth');
 
 const router = express.Router();
 
-router.post('/order-summary', isAuth, orderController.getOrderSummary);
+router.get('/order-summary', isAuth, orderController.getOrderSummary);
 
 router.post('/checkout', isAuth, orderController.getCheckout);
 
