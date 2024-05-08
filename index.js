@@ -8,6 +8,7 @@ const userRoutes = require('./routes/user')
 const productRoutes = require('./routes/products');
 const addressRoutes = require('./routes/address');
 const orderRoutes = require('./routes/order');
+const couponRoutes = require('./routes/coupons');
 const storeRoutes = require('./routes/store');
 
 require('dotenv').config();
@@ -22,5 +23,6 @@ app.use('/user', userRoutes);
 app.use('/shop', productRoutes);
 app.use('/orders', addressRoutes);
 app.use('/orders', orderRoutes);
+app.use('/coupons', couponRoutes);
 app.use('/store', storeRoutes);
 app.listen(process.env.PORT);
