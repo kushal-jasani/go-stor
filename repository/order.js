@@ -21,10 +21,17 @@ const addPaymentDetail = async ({ order_id, status }) => {
     return await db.query(sql, params)
 }
 
-const updatePaymentDetails = async (paymentIntent, status) => {
-    let sql = `UPDATE paymentDetails SET status = ? WHERE id = ?`
+const getPaymentDetails = async (order_id) => {
+    let sql = `SELECT * FROM paymentDetails WHERE order_id = ?`
 
-    let params = [status, paymentId]
+    let params = [order_id]
+    return await db.query(sql, params)
+}
+
+const updatePaymentDetails = async (orderId, invoiceNumber, type, status) => {
+    let sql = `UPDATE paymentDetails SET invoice_number = ?, type = ?, status = ? WHERE order_id = ?`
+
+    let params = [invoiceNumber, type, status, orderId]
     return await db.query(sql, params)
 }
 
@@ -32,5 +39,6 @@ module.exports = {
     addOrderDetail,
     addOrderItemDetail,
     addPaymentDetail,
+    getPaymentDetails,
     updatePaymentDetails
 };

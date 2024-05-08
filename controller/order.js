@@ -2,6 +2,7 @@ const {
     addOrderDetail,
     addOrderItemDetail,
     addPaymentDetail,
+    getPaymentDetails,
     updatePaymentDetails
 } = require('../repository/order');
 
@@ -15,8 +16,13 @@ const {
     getUserIdByAddress
 } = require('../repository/address');
 
+const uuid = require('uuid');
 const stripe = require('stripe')(process.env.STRIPE_KEY);
 const { generateResponse, sendHttpResponse } = require("../helper/response");
+
+function generateInvoiceNumber() {
+    return uuid.v4(); // Generates a version 4 UUID
+}
 
 exports.getOrderSummary = async (req, res, next) => {
     try {
@@ -128,18 +134,6 @@ exports.getCheckout = async (req, res, next) => {
             })
         );
 
-        // update payment status in database
-        const [paymentDetail] = await addPaymentDetail({ order_id: orderId, status: 'pending' });
-        if (!paymentDetail.affectedRows) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 401,
-                    msg: 'Internal server error, Failed to add payment details',
-                })
-            );
-        }
-
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: orderItems.map(product => {
@@ -157,19 +151,35 @@ exports.getCheckout = async (req, res, next) => {
             }),
             metadata: {
                 stripe_public_key: "pk_test_51OtpDySFzAljgqh0jL1bAOJvq5AJY5DrBpYBApU1pgCEC7Dfh04icMpLT2MgbGs3iA842eWlSq0xHyqtQwbtTQqQ003jRpIWpE",
+                orderId
             },
             mode: 'payment',
             success_url: req.protocol + '://' + req.get('host') + '/checkout/success', // https://localhost:3000/checkout/success
-            cancel_url: req.protocol + '://' + req.get('host') + '/checkout/cancel'
+            cancel_url: req.protocol + '://' + req.get('host') + '/checkout/cancel',
+            shipping_address_collection: {
+                allowed_countries: ['IN'] // Allow shipping address collection for India
+            }
         });
         console.log(session)
         let sessionId = session.id
+
+        // update payment status in database
+        const [paymentDetail] = await addPaymentDetail({ order_id: orderId, status: session.payment_status });
+        if (!paymentDetail.affectedRows) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 401,
+                    msg: 'Internal server error, Failed to add payment details',
+                })
+            );
+        }
 
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
-                msg: 'Order summary fetched!',
+                msg: 'Order checkout proceeded',
                 data: {
                     session_id: sessionId,
                     order_id: orderId
@@ -192,14 +202,61 @@ exports.getCheckoutSuccess = async (req, res, next) => {
     try {
         const { sessionId } = req.body;
         const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const { orderId } = session.metadata;
 
-        // await updatePaymentDetails(paymentIntentSucceeded, 'paid');
+        if (session.payment_status === 'paid') {
+            const [paymentDetail] = await getPaymentDetails(orderId);
+            let invoiceNumber;
+            invoiceNumber = paymentDetail[0].invoice_number
+            if (paymentDetail[0].status !== 'paid') {
+                invoiceNumber = generateInvoiceNumber();
+            }
+            await updatePaymentDetails(orderId, invoiceNumber, session.payment_method_types[0], session.payment_status);
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'Order creation successful.',
+                    data: {
+                        orderId,
+                        invoiceNumber
+                    }
+                })
+            );
+        }
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 400,
+                msg: "payment status unpaid or not updated"
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
+    }
+}
 
+exports.getCheckoutCancel = async (req, res, next) => {
+    try {
+        const { sessionId } = req.body;
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const { orderId } = session.metadata;
+        let invoiceNumber;
+
+        const [paymentDetail] = await getPaymentDetails(orderId);
+        await updatePaymentDetails(orderId, invoiceNumber, session.payment_method_types[0], session.payment_status);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
-                msg: 'Order creation successful.',
+                msg: 'Order canceled!',
                 data: {
                     orderId
                 }

@@ -11,6 +11,6 @@ router.post('/checkout', isAuth, orderController.getCheckout);
 
 router.post('/checkout/success', isAuth, orderController.getCheckoutSuccess);
 
-router.post('/checkout/cancel', isAuth, orderController.getCheckout);
+router.post('/checkout/cancel', isAuth, orderController.getCheckoutCancel);
 
 module.exports = router;
