@@ -59,30 +59,25 @@ exports.getCoupons = async (req, res, next) => {
 
         const [categoryIdObject] = await getCategoryIdByProductId(parsedProductId)
         const categoryIds = categoryIdObject.map(obj => obj.category_id);
-        console.log(categoryIds)
 
         let couponIds = [];
         await Promise.all(
             categoryIds.map(async (categoryId) => {
                 const [couponId] = await getCoupons(undefined, categoryId)
-                console.log(couponId)
                 couponIds.push(couponId)
             })
         );
         await Promise.all(
             parsedProductId.map(async (product) => {
                 const [couponId] = await getCoupons(product, undefined)
-                console.log(couponId)
                 couponIds.push(couponId)
             })
         );
-        console.log(couponIds)
 
         const flattenedCouponIds = couponIds.flat();
         const couponIdValues = flattenedCouponIds.map(obj => obj.id);
         const coupon_id = [...new Set(couponIdValues)];
 
-        console.log(coupon_id)
         const [ApplicableCoupons] = await getApplicableCouponsById(coupon_id)
         const [NotApplicableCoupons] = await getNotApplicableCouponsById(coupon_id)
         return sendHttpResponse(req, res, next,
