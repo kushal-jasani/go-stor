@@ -367,6 +367,7 @@ const filterBySearch = async (productId) => {
             FROM
                 SpecValues`
 
+    console.log(sql, params)
     return await db.query(sql, params);
 }
 
@@ -519,6 +520,15 @@ const getSubCategoryName = async (subCategoryId) => {
     return await db.query(sql, params);
 }
 
+const getCategoryIdByProductId = async (productId) => {
+    let sql = `SELECT DISTINCT category_id
+    FROM products
+    WHERE id IN (?)`
+
+    let params = [productId];
+    return await db.query(sql, params);
+}
+
 module.exports = {
     getCategoryList,
     getProductsByCategoryId,
@@ -531,5 +541,6 @@ module.exports = {
     getMaxPrice,
     getOtherFilters,
     getCategoryName,
-    getSubCategoryName
+    getSubCategoryName,
+    getCategoryIdByProductId
 };

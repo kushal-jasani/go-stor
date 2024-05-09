@@ -1,7 +1,18 @@
 const {
     getCoupons,
+    getApplicableCouponsById,
+    getNotApplicableCouponsById,
     getCouponByCouponId
 } = require('../repository/coupons');
+
+const {
+    getOrderCount
+} = require('../repository/order');
+
+const {
+    getProductByProductId,
+    getCategoryIdByProductId
+} = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
@@ -19,12 +30,18 @@ const getFormattedDate = (dateString) => {
     return formattedDate;
 }
 
-const isApplicable = async (couponId) => {
+const isApplicable = async (couponId, order_total, orderCount) => {
     const [couponDetail] = await getCouponByCouponId(couponId)
-    const { code, discount_type, discount_value, max_discount, min_price, start_date, expiry_date } = couponDetail[0]
+    const { code, discount_type, discount_value, max_discount, min_price, valid_on_order_number, start_date, expiry_date } = couponDetail[0]
 
     const currentDate = new Date();
     if (!(currentDate >= start_date && currentDate <= expiry_date)) {
+        return 0
+    }
+    if (order_total < min_price) {
+        return 0
+    }
+    if (orderCount > valid_on_order_number) {
         return 0
     }
     return 1
@@ -32,14 +49,51 @@ const isApplicable = async (couponId) => {
 
 exports.getCoupons = async (req, res, next) => {
     try {
-        // const { productId } = req.query;
-        const [coupons] = await getCoupons()
+        const { productId } = req.query;
+        let parsedProductId;
+        try {
+            parsedProductId = JSON.parse(productId);
+        } catch (error) {
+            console.error('Error parsing filters: ', error);
+        }
+
+        const [categoryIdObject] = await getCategoryIdByProductId(parsedProductId)
+        const categoryIds = categoryIdObject.map(obj => obj.category_id);
+        console.log(categoryIds)
+
+        let couponIds = [];
+        await Promise.all(
+            categoryIds.map(async (categoryId) => {
+                const [couponId] = await getCoupons(undefined, categoryId)
+                console.log(couponId)
+                couponIds.push(couponId)
+            })
+        );
+        await Promise.all(
+            parsedProductId.map(async (product) => {
+                const [couponId] = await getCoupons(product, undefined)
+                console.log(couponId)
+                couponIds.push(couponId)
+            })
+        );
+        console.log(couponIds)
+
+        const flattenedCouponIds = couponIds.flat();
+        const couponIdValues = flattenedCouponIds.map(obj => obj.id);
+        const coupon_id = [...new Set(couponIdValues)];
+
+        console.log(coupon_id)
+        const [ApplicableCoupons] = await getApplicableCouponsById(coupon_id)
+        const [NotApplicableCoupons] = await getNotApplicableCouponsById(coupon_id)
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Coupons fetched!',
-                data: coupons
+                data: {
+                    ApplicableCoupons,
+                    NotApplicableCoupons
+                }
             })
         );
     } catch (err) {
@@ -97,8 +151,25 @@ exports.getTermsByCouponId = async (req, res, next) => {
 exports.applyCoupon = async (req, res, next) => {
     try {
         const { couponId } = req.params;
+        const { products } = req.query;
+        let parsedProducts;
+        try {
+            parsedProducts = JSON.parse(products);
+        } catch (error) {
+            console.error('Error parsing filters: ', error);
+        }
 
-        const is_valid = await isApplicable(couponId)
+        let order_sub_total = 0;
+        await Promise.all(
+            parsedProducts.map(async (product) => {
+                const [productDetail] = await getProductByProductId(product.id)
+                order_sub_total += parseFloat(productDetail[0].product_selling_price) * parseFloat(product.quantity)
+            })
+        );
+        order_sub_total = order_sub_total.toFixed(2);
+        let [orderCount] = await getOrderCount({ user_id: req.user.userId })
+
+        const is_valid = await isApplicable(couponId, order_sub_total, orderCount)
         if (!is_valid) {
             return sendHttpResponse(req, res, next,
                 generateResponse({

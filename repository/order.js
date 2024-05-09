@@ -1,5 +1,12 @@
 const db = require('../util/db');
 
+const getOrderCount = async ({ user_id }) => {
+    let sql = `SELECT count(*) FROM orders WHERE ?`
+
+    let params = [user_id]
+    return await db.query(sql, params)
+}
+
 const addOrderDetail = async ({ user_id, coupon_id, address_id, gross_amount, discount_amount, delivery_charge, order_amount }) => {
     let sql = `INSERT INTO orders SET ?`
 
@@ -36,6 +43,7 @@ const updatePaymentDetails = async (orderId, invoiceNumber, type, status) => {
 }
 
 module.exports = {
+    getOrderCount,
     addOrderDetail,
     addOrderItemDetail,
     addPaymentDetail,
