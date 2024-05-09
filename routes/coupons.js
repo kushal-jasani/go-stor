@@ -9,6 +9,6 @@ router.get('/', isAuth, couponController.getCoupons);
 
 router.get('/t&c/:couponId', isAuth, couponController.getTermsByCouponId);
 
-router.get('/apply/:couponId', isAuth, couponController.applyCoupon);
+router.get('/apply', isAuth, couponController.applyCoupon);
 
 module.exports = router;

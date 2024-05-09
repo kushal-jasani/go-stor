@@ -2,7 +2,8 @@ const {
     getCoupons,
     getApplicableCouponsById,
     getNotApplicableCouponsById,
-    getCouponByCouponId
+    getCouponByCouponId,
+    getCouponByCode
 } = require('../repository/coupons');
 
 const {
@@ -32,7 +33,7 @@ const getFormattedDate = (dateString) => {
 
 const isApplicable = async (couponId, order_total, orderCount) => {
     const [couponDetail] = await getCouponByCouponId(couponId)
-    const { code, discount_type, discount_value, max_discount, min_price, valid_on_order_number, start_date, expiry_date } = couponDetail[0]
+    const { min_price, valid_on_order_number, start_date, expiry_date } = couponDetail[0]
 
     const currentDate = new Date();
     if (!(currentDate >= start_date && currentDate <= expiry_date)) {
@@ -47,6 +48,30 @@ const isApplicable = async (couponId, order_total, orderCount) => {
     return 1
 }
 
+const getApplicableCouponId = async (productId) => {
+    const [categoryIdObject] = await getCategoryIdByProductId(productId)
+    const categoryIds = categoryIdObject.map(obj => obj.category_id);
+
+    let couponIds = [];
+    await Promise.all(
+        categoryIds.map(async (categoryId) => {
+            const [couponId] = await getCoupons(undefined, categoryId)
+            couponIds.push(couponId)
+        })
+    );
+    await Promise.all(
+        productId.map(async (product) => {
+            const [couponId] = await getCoupons(product, undefined)
+            couponIds.push(couponId)
+        })
+    );
+
+    const flattenedCouponIds = couponIds.flat();
+    const couponIdValues = flattenedCouponIds.map(obj => obj.id);
+    const coupon_id = [...new Set(couponIdValues)];
+    return coupon_id
+}
+
 exports.getCoupons = async (req, res, next) => {
     try {
         const { productId } = req.query;
@@ -57,27 +82,7 @@ exports.getCoupons = async (req, res, next) => {
             console.error('Error parsing filters: ', error);
         }
 
-        const [categoryIdObject] = await getCategoryIdByProductId(parsedProductId)
-        const categoryIds = categoryIdObject.map(obj => obj.category_id);
-
-        let couponIds = [];
-        await Promise.all(
-            categoryIds.map(async (categoryId) => {
-                const [couponId] = await getCoupons(undefined, categoryId)
-                couponIds.push(couponId)
-            })
-        );
-        await Promise.all(
-            parsedProductId.map(async (product) => {
-                const [couponId] = await getCoupons(product, undefined)
-                couponIds.push(couponId)
-            })
-        );
-
-        const flattenedCouponIds = couponIds.flat();
-        const couponIdValues = flattenedCouponIds.map(obj => obj.id);
-        const coupon_id = [...new Set(couponIdValues)];
-
+        const coupon_id = await getApplicableCouponId(parsedProductId)
         const [ApplicableCoupons] = await getApplicableCouponsById(coupon_id)
         const [NotApplicableCoupons] = await getNotApplicableCouponsById(coupon_id)
         return sendHttpResponse(req, res, next,
@@ -145,8 +150,19 @@ exports.getTermsByCouponId = async (req, res, next) => {
 
 exports.applyCoupon = async (req, res, next) => {
     try {
-        const { couponId } = req.params;
-        const { products } = req.query;
+        const { products, code } = req.query;
+        const [coupon] = await getCouponByCode(code);
+        if (!coupon.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 200,
+                    msg: "Coupon not found!",
+                })
+            );
+        }
+        const { id: couponId, discount_type, discount_value, max_discount } = coupon[0];
+
         let parsedProducts;
         try {
             parsedProducts = JSON.parse(products);
@@ -164,13 +180,29 @@ exports.applyCoupon = async (req, res, next) => {
         order_sub_total = order_sub_total.toFixed(2);
         let [orderCount] = await getOrderCount({ user_id: req.user.userId })
 
-        const is_valid = await isApplicable(couponId, order_sub_total, orderCount)
+        let is_valid = await isApplicable(couponId, order_sub_total, orderCount)
+
+        const ids = parsedProducts.map(obj => obj.id);
+        const coupon_id = await getApplicableCouponId(ids)
+
+        if (!coupon.length || !coupon_id.includes(couponId)) {
+            is_valid = 0;
+        }
+
+        let discount_amount = 0;
+        if (discount_type === 'fixed') {
+            discount_amount = discount_value
+        } else if (discount_type === 'rate') {
+            const rated_discount = (order_sub_total * discount_value) / 100
+            discount_amount = rated_discount > max_discount ? max_discount : rated_discount
+        }
+
         if (!is_valid) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",
                     statusCode: 200,
-                    msg: "Coupon can not be applicable",
+                    msg: "COUPON IS NOT APPLICABLE, PLEASE REFER TO THE TERMS AND CONDITIONS FOR MORE DETAILS.",
                 })
             );
         }
@@ -178,7 +210,10 @@ exports.applyCoupon = async (req, res, next) => {
             generateResponse({
                 status: "success",
                 statusCode: 200,
-                msg: "Coupon can be applicable"
+                msg: "Coupon can be applicable",
+                data: {
+                    discount_amount
+                }
             })
         );
     } catch (err) {
