@@ -3,8 +3,13 @@ const {
     addOrderItemDetail,
     addPaymentDetail,
     getPaymentDetails,
-    updatePaymentDetails
+    updatePaymentDetails,
+    getOrderCount
 } = require('../repository/order');
+
+const {
+    getCouponByCouponId
+} = require('../repository/coupons');
 
 const {
     getProductByProductId
@@ -24,9 +29,26 @@ function generateInvoiceNumber() {
     return uuid.v4(); // Generates a version 4 UUID
 }
 
+const isApplicable = async (couponId, order_total, orderCount) => {
+    const [couponDetail] = await getCouponByCouponId(couponId)
+    const { min_price, valid_on_order_number, start_date, expiry_date } = couponDetail[0]
+
+    const currentDate = new Date();
+    if (!(currentDate >= start_date && currentDate <= expiry_date)) {
+        return 0
+    }
+    if (order_total < min_price) {
+        return 0
+    }
+    if (orderCount > valid_on_order_number) {
+        return 0
+    }
+    return 1
+}
+
 exports.getOrderSummary = async (req, res, next) => {
     try {
-        const { products } = req.query;
+        const { products, couponId } = req.query;
 
         let parsedProducts;
         try {
@@ -48,6 +70,37 @@ exports.getOrderSummary = async (req, res, next) => {
 
         let deliveryCharge = order_sub_total > 5999 ? 'FREE' : (order_sub_total * 0.02).toFixed(2)
         let discountAmount = 0;
+        if (couponId) {
+            const [coupon] = await getCouponByCouponId(couponId);
+            if (!coupon.length) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 200,
+                        msg: "Coupon not found!",
+                    })
+                );
+            }
+            const { discount_type, discount_value, max_discount } = coupon[0]; let [orderCount] = await getOrderCount({ user_id: req.user.userId })
+            let is_valid = await isApplicable(couponId, order_sub_total, orderCount)
+            if (!is_valid) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 200,
+                        msg: "COUPON IS NOT APPLICABLE, PLEASE REFER TO THE TERMS AND CONDITIONS FOR MORE DETAILS.",
+                    })
+                );
+            }
+
+            if (discount_type === 'fixed') {
+                discountAmount = discount_value
+            } else if (discount_type === 'rate') {
+                const rated_discount = (order_sub_total * discount_value) / 100
+                discountAmount = rated_discount > max_discount ? max_discount : rated_discount
+            }
+        }
+
         let order_total = (parseFloat(order_sub_total) + (deliveryCharge === 'FREE' ? 0 : parseFloat(deliveryCharge)) - parseFloat(discountAmount)).toFixed(2);
 
         return sendHttpResponse(req, res, next,
@@ -78,16 +131,16 @@ exports.getOrderSummary = async (req, res, next) => {
 
 exports.getCheckout = async (req, res, next) => {
     try {
-        const { address_id, coupon_id, products } = req.body;
+        const { addressId, couponId, products } = req.body;
 
         // validate addressId
-        const [userData] = await getUserIdByAddress({ id: address_id })
+        const [userData] = await getUserIdByAddress({ id: addressId })
         if (!userData.length || userData[0].user_id !== req.user.userId) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",
                     statusCode: 400,
-                    msg: `Invalid address_id for current user.`
+                    msg: `Invalid addressId for current user.`
                 })
             );
         }
@@ -113,15 +166,46 @@ exports.getCheckout = async (req, res, next) => {
         order_sub_total = order_sub_total.toFixed(2);
         let deliveryCharge = order_sub_total > 5999 ? 0 : (order_sub_total * 0.02).toFixed(2)
         let discountAmount = 0;
+        if (couponId) {
+            const [coupon] = await getCouponByCouponId(couponId);
+            if (!coupon.length) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 200,
+                        msg: "Coupon not found!",
+                    })
+                );
+            }
+            const { discount_type, discount_value, max_discount } = coupon[0]; let [orderCount] = await getOrderCount({ user_id: req.user.userId })
+            let is_valid = await isApplicable(couponId, order_sub_total, orderCount)
+            if (!is_valid) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 200,
+                        msg: "COUPON IS NOT APPLICABLE, PLEASE REFER TO THE TERMS AND CONDITIONS FOR MORE DETAILS.",
+                    })
+                );
+            }
+
+            if (discount_type === 'fixed') {
+                discountAmount = discount_value
+            } else if (discount_type === 'rate') {
+                const rated_discount = (order_sub_total * discount_value) / 100
+                discountAmount = rated_discount > max_discount ? max_discount : rated_discount
+            }
+        }
+
         let order_total = (parseFloat(order_sub_total) + parseFloat(deliveryCharge) - parseFloat(discountAmount)).toFixed(2);
 
         // add orderAddress details in database
-        const [addressDetail] = await getAddress({ user_id: req.user.userId, id: address_id })
+        const [addressDetail] = await getAddress({ user_id: req.user.userId, id: addressId })
         const [addOrderAddress] = await insertOrderAddress(addressDetail[0])
         let order_address_id = addOrderAddress.insertId
 
         // add order in database
-        const [order] = await addOrderDetail({ user_id: req.user.userId, coupon_id, address_id: order_address_id, gross_amount: order_sub_total, discount_amount: discountAmount, delivery_charge: deliveryCharge, order_amount: order_total })
+        const [order] = await addOrderDetail({ user_id: req.user.userId, coupon_id: couponId, address_id: order_address_id, gross_amount: order_sub_total, discount_amount: discountAmount, delivery_charge: deliveryCharge, order_amount: order_total })
         if (!order.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -156,10 +240,6 @@ exports.getCheckout = async (req, res, next) => {
                     quantity: product.quantity,
                 }
             }),
-            metadata: {
-                stripe_public_key: "pk_test_51OtpDySFzAljgqh0jL1bAOJvq5AJY5DrBpYBApU1pgCEC7Dfh04icMpLT2MgbGs3iA842eWlSq0xHyqtQwbtTQqQ003jRpIWpE",
-                orderId
-            },
             mode: 'payment',
             success_url: req.protocol + '://' + req.get('host') + '/checkout/success', // https://localhost:3000/checkout/success
             cancel_url: req.protocol + '://' + req.get('host') + '/checkout/cancel',
@@ -225,6 +305,7 @@ exports.getCheckoutSuccess = async (req, res, next) => {
                     statusCode: 200,
                     msg: 'Order creation successful.',
                     data: {
+                        stripe_public_key: "pk_test_51OtpDySFzAljgqh0jL1bAOJvq5AJY5DrBpYBApU1pgCEC7Dfh04icMpLT2MgbGs3iA842eWlSq0xHyqtQwbtTQqQ003jRpIWpE",
                         orderId,
                         invoiceNumber
                     }
