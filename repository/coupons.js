@@ -17,7 +17,6 @@ const getCoupons = async (productId, categoryId) => {
         params.push(categoryId)
     }
 
-    console.log(sql, params)
     return await db.query(sql, params)
 }
 
