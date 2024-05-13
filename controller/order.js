@@ -225,33 +225,21 @@ exports.getCheckout = async (req, res, next) => {
             })
         );
 
-        const session = await stripe.checkout.sessions.create({
+        let paymentIntent;
+        const amountInPaisa = Math.round(order_total * 100);
+        const paymentIntentData = {
             payment_method_types: ['card'],
-            line_items: orderItems.map(product => {
-                return {
-                    price_data: {
-                        currency: 'inr',
-                        unit_amount: product.product_selling_price * 100,
-                        product_data: {
-                            name: product.product_name,
-                            images: [product.image]
-                        },
-                    },
-                    quantity: product.quantity,
-                }
-            }),
-            mode: 'payment',
-            success_url: req.protocol + '://' + req.get('host') + '/checkout/success', // https://localhost:3000/checkout/success
-            cancel_url: req.protocol + '://' + req.get('host') + '/checkout/cancel',
-            shipping_address_collection: {
-                allowed_countries: ['IN'] // Allow shipping address collection for India
-            }
-        });
-        console.log(session)
-        let sessionId = session.id
+            amount: amountInPaisa,
+            currency: 'inr',
+            payment_method: "pm_card_visa",
+            description: 'Order payment',
+            metadata: { orderId }
+        };
+        paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
+        console.log(paymentIntent)
 
         // update payment status in database
-        const [paymentDetail] = await addPaymentDetail({ order_id: orderId, status: session.payment_status });
+        const [paymentDetail] = await addPaymentDetail({ order_id: orderId, status: 'unpaid' });
         if (!paymentDetail.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -268,8 +256,9 @@ exports.getCheckout = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Order checkout proceeded',
                 data: {
-                    session_id: sessionId,
-                    order_id: orderId
+                    order_id: orderId,
+                    paymentIntent_id: paymentIntent ? paymentIntent.id : null,
+                    paymentIntent_client_secret: paymentIntent ? paymentIntent.client_secret : null
                 }
             })
         );
@@ -285,78 +274,74 @@ exports.getCheckout = async (req, res, next) => {
     }
 }
 
-exports.getCheckoutSuccess = async (req, res, next) => {
+exports.stripeWebhook = async (req, res, next) => {
+    const payload = JSON.stringify(req.body);
+    const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_END_POINT_SECRET;
+    let event, orderId, invoiceNumber, paymentDetail;
     try {
-        const { sessionId } = req.body;
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
-        const { orderId } = session.metadata;
+        event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
 
-        if (session.payment_status === 'paid') {
-            const [paymentDetail] = await getPaymentDetails(orderId);
-            let invoiceNumber;
-            invoiceNumber = paymentDetail[0].invoice_number
-            if (paymentDetail[0].status !== 'paid') {
-                invoiceNumber = generateInvoiceNumber();
-            }
-            await updatePaymentDetails(orderId, invoiceNumber, session.payment_method_types[0], session.payment_status);
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'Order creation successful.',
-                    data: {
-                        stripe_public_key: "pk_test_51OtpDySFzAljgqh0jL1bAOJvq5AJY5DrBpYBApU1pgCEC7Dfh04icMpLT2MgbGs3iA842eWlSq0xHyqtQwbtTQqQ003jRpIWpE",
-                        orderId,
-                        invoiceNumber
-                    }
-                })
-            );
+        // Handle the event
+        switch (event.type) {
+            case 'payment_intent.succeeded':
+                const paymentIntentSucceeded = event.data.object;
+                orderId = paymentIntentSucceeded.metadata.orderId;
+
+                [paymentDetail] = await getPaymentDetails(orderId);
+                invoiceNumber = paymentDetail[0].invoice_number
+                if (paymentDetail[0].status !== paymentIntentSucceeded.status) {
+                    invoiceNumber = generateInvoiceNumber();
+                }
+
+                // Update the payment details table with the payment status
+                await updatePaymentDetails(orderId, invoiceNumber, paymentIntentSucceeded.payment_method_types[0], paymentIntentSucceeded.status);
+                break;
+
+            case 'payment_intent.canceled':
+                const paymentIntentCanceled = event.data.object;
+                // Then define and call a function to handle the event payment_intent.canceled
+                break;
+
+            case 'payment_intent.created':
+                const paymentIntentCreated = event.data.object;
+                // Then define and call a function to handle the event payment_intent.created
+                break;
+
+            case 'payment_intent.payment_failed':
+                const paymentIntentPaymentFailed = event.data.object;
+                orderId = paymentIntentPaymentFailed.metadata.orderId;
+
+                [paymentDetail] = await getPaymentDetails(orderId);
+                invoiceNumber = paymentDetail[0].invoice_number
+                if (paymentDetail[0].status !== paymentIntentSucceeded.status) {
+                    invoiceNumber = generateInvoiceNumber();
+                }
+
+                // Update the payment details table with the payment status
+                await updatePaymentDetails(orderId, invoiceNumber, paymentIntentPaymentFailed.payment_method_types[0], paymentIntentPaymentFailed.status);
+                break;
+
+            case 'payment_intent.processing':
+                const paymentIntentProcessing = event.data.object;
+                // Then define and call a function to handle the event payment_intent.processing
+                break;
+
+            case 'payment_intent.requires_action':
+                const paymentIntentRequiresAction = event.data.object;
+                // Then define and call a function to handle the event payment_intent.requires_action
+                break;
+
+            default:
+                console.log(`Unhandled event type ${event.type}`);
         }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 400,
-                msg: "payment status unpaid or not updated"
-            })
-        );
     } catch (err) {
         console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
                 statusCode: 500,
-                msg: "Internal server error",
-            })
-        );
-    }
-}
-
-exports.getCheckoutCancel = async (req, res, next) => {
-    try {
-        const { sessionId } = req.body;
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
-        const { orderId } = session.metadata;
-        let invoiceNumber;
-
-        const [paymentDetail] = await getPaymentDetails(orderId);
-        await updatePaymentDetails(orderId, invoiceNumber, session.payment_method_types[0], session.payment_status);
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'Order canceled!',
-                data: {
-                    orderId
-                }
-            })
-        );
-    } catch (err) {
-        console.log(err);
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 500,
-                msg: "Internal server error",
+                msg: "Internal server error"
             })
         );
     }

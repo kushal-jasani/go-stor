@@ -9,8 +9,6 @@ router.get('/order-summary', isAuth, orderController.getOrderSummary);
 
 router.post('/checkout', isAuth, orderController.getCheckout);
 
-router.post('/checkout/success', isAuth, orderController.getCheckoutSuccess);
-
-router.post('/checkout/cancel', isAuth, orderController.getCheckoutCancel);
+router.post('/checkout/stripe/webhook', isAuth, orderController.stripeWebhook);
 
 module.exports = router;
