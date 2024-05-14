@@ -1,17 +1,39 @@
 require("dotenv").config();
 const otpless = require("otpless-node-js-auth-sdk");
 const { generateResponse, sendHttpResponse } = require("../helper/response");
+const clientId = process.env.OTPLESS_CLIENTID;
+const clientSecret = process.env.OTPLESS_CLIETSECRET;
+
 const {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
 } = require("../util/jwt");
-const { findUser, insertUser } = require("../repository/auth");
-const clientId = process.env.OTPLESS_CLIENTID;
-const clientSecret = process.env.OTPLESS_CLIETSECRET;
 
+const {
+  findUser,
+  insertUser
+} = require("../repository/auth");
+
+const {
+  sendOtpSchema,
+  verifyRegisterOtpSchema,
+  verifyLoginOtpSchema,
+  refreshAccessTokenSchema,
+  resendOtpSchema
+} = require("../helper/auth_validation_schema");
 
 exports.register = async (req, res, next) => {
+  const { error } = sendOtpSchema.validate(req.body);
+  if (error) {
+    return sendHttpResponse(req, res, next,
+      generateResponse({
+        status: "error",
+        statusCode: 400,
+        msg: error.details[0].message
+      })
+    );
+  }
   try {
     const { phoneno } = req.body;
     let [userResults] = await findUser(phoneno);
@@ -62,6 +84,16 @@ exports.register = async (req, res, next) => {
 };
 
 exports.verifyRegisterOTP = async (req, res, next) => {
+  const { error } = verifyRegisterOtpSchema.validate(req.body);
+  if (error) {
+    return sendHttpResponse(req, res, next,
+      generateResponse({
+        status: "error",
+        statusCode: 400,
+        msg: error.details[0].message
+      })
+    );
+  }
   try {
     const { name, email, phoneno, referral, otpid, enteredotp } = req.body;
     const phonewithcountrycode = "+91" + phoneno;
@@ -106,6 +138,16 @@ exports.verifyRegisterOTP = async (req, res, next) => {
 };
 
 exports.logIn = async (req, res, next) => {
+  const { error } = sendOtpSchema.validate(req.body);
+  if (error) {
+    return sendHttpResponse(req, res, next,
+      generateResponse({
+        status: "error",
+        statusCode: 400,
+        msg: error.details[0].message
+      })
+    );
+  }
   try {
     const { phoneno } = req.body;
     const phonewithcountrycode = "+91" + phoneno;
@@ -157,6 +199,16 @@ exports.logIn = async (req, res, next) => {
 };
 
 exports.varifyLoginOTP = async (req, res, next) => {
+  const { error } = verifyLoginOtpSchema.validate(req.body);
+  if (error) {
+    return sendHttpResponse(req, res, next,
+      generateResponse({
+        status: "error",
+        statusCode: 400,
+        msg: error.details[0].message
+      })
+    );
+  }
   try {
     const { phoneno, otpid, enteredotp } = req.body;
     const [userResults] = await findUser(phoneno);
@@ -208,6 +260,16 @@ exports.varifyLoginOTP = async (req, res, next) => {
 };
 
 exports.refreshAccessToken = async (req, res, next) => {
+  const { error } = refreshAccessTokenSchema.validate(req.body);
+  if (error) {
+    return sendHttpResponse(req, res, next,
+      generateResponse({
+        status: "error",
+        statusCode: 400,
+        msg: error.details[0].message
+      })
+    );
+  }
   try {
     const { refreshToken } = req.body;
     const userId = verifyRefreshToken(refreshToken);
@@ -251,10 +313,19 @@ exports.refreshAccessToken = async (req, res, next) => {
   }
 };
 
-
 exports.resendOtp = async (req, res, next) => {
-  const { otpid } = req.body;
+  const { error } = resendOtpSchema.validate(req.body);
+  if (error) {
+    return sendHttpResponse(req, res, next,
+      generateResponse({
+        status: "error",
+        statusCode: 400,
+        msg: error.details[0].message
+      })
+    );
+  }
   try {
+    const { otpid } = req.body;
     const response = await otpless.resendOTP(otpid, clientId, clientSecret);
     if (response.success === false) {
       return sendHttpResponse(req, res, next,
