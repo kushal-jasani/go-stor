@@ -11,7 +11,7 @@ const generateRefreshToken= (userId, expiresIn='30d')=> {
 
 const verifyRefreshToken=(refreshToken)=>{
     try{
-        const decodedRefresh=jwt.verify(refreshToken,process.env.JWT_SECRET);
+        const decodedRefresh=jwt.verify(refreshToken, process.env.JWT_SECRET);
         return decodedRefresh.userId;
     }
     catch(error){
