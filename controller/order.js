@@ -1,8 +1,12 @@
 const {
+    getCurrentOrders,
+    getPastOrders,
+    getOrderByOrderId,
     addOrderDetail,
     addOrderItemDetail,
     addPaymentDetail,
     getPaymentDetails,
+    updateOrderStatus,
     updatePaymentDetails,
     getOrderCount
 } = require('../repository/order');
@@ -44,6 +48,89 @@ const isApplicable = async (couponId, order_total, orderCount) => {
         return 0
     }
     return 1
+}
+
+exports.getOrders = async (req, res, next) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const offset = (page - 1) * limit;
+        const [currentOrders] = await getCurrentOrders({ userId: req.user.userId, offset, limit })
+        if (!currentOrders.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Orders found.',
+                })
+            );
+        }
+
+        const [pastOrders] = await getPastOrders({ userId: req.user.userId, offset, limit })
+        if (!pastOrders.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Orders found.',
+                })
+            );
+        }
+
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Orders fetched!',
+                data: {
+                    currentOrders,
+                    pastOrders
+                }
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
+exports.getOrderByOrderId = async (req, res, next) => {
+    try {
+        const orderId = req.params.orderId;
+        const [order] = await getOrderByOrderId({ userId: req.user.userId, orderId })
+        if (!order.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'Order Detail not found!',
+                })
+            );
+        }
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Order Detail fetched!',
+                data: order
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
 }
 
 exports.getOrderSummary = async (req, res, next) => {
@@ -205,7 +292,7 @@ exports.getCheckout = async (req, res, next) => {
         let order_address_id = addOrderAddress.insertId
 
         // add order in database
-        const [order] = await addOrderDetail({ user_id: req.user.userId, coupon_id: couponId, address_id: order_address_id, gross_amount: order_sub_total, discount_amount: discountAmount, delivery_charge: deliveryCharge, order_amount: order_total })
+        const [order] = await addOrderDetail({ user_id: req.user.userId, coupon_id: couponId, address_id: order_address_id, gross_amount: order_sub_total, discount_amount: discountAmount, delivery_charge: deliveryCharge, order_amount: order_total, status: 'pending' })
         if (!order.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -294,7 +381,8 @@ exports.stripeWebhook = async (req, res, next) => {
                     invoiceNumber = generateInvoiceNumber();
                 }
 
-                // Update the payment details table with the payment status
+                // Update order table status & the payment details table with the payment status
+                await updateOrderStatus(orderId, 'placed');
                 await updatePaymentDetails(orderId, invoiceNumber, paymentIntentSucceeded.payment_method_types[0], paymentIntentSucceeded.status);
                 break;
 
@@ -318,7 +406,8 @@ exports.stripeWebhook = async (req, res, next) => {
                     invoiceNumber = generateInvoiceNumber();
                 }
 
-                // Update the payment details table with the payment status
+                // Update order table status & the payment details table with the payment status
+                await updateOrderStatus(orderId, 'cancel');
                 await updatePaymentDetails(orderId, invoiceNumber, paymentIntentPaymentFailed.payment_method_types[0], paymentIntentPaymentFailed.status);
                 break;
 
