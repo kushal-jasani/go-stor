@@ -25,6 +25,10 @@ const {
     getUserIdByAddress
 } = require('../repository/address');
 
+const {
+    productsSchema
+} = require("../helper/order_validation_schema");
+
 const uuid = require('uuid');
 const stripe = require('stripe')(process.env.STRIPE_KEY);
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -228,6 +232,26 @@ exports.getCheckout = async (req, res, next) => {
                     status: "error",
                     statusCode: 400,
                     msg: `Invalid addressId for current user.`
+                })
+            );
+        }
+
+        if (!products || !products.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: `For checkout one product required in cart.`
+                })
+            );
+        }
+        const { error } = productsSchema.validate(products);
+        if (error) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: error.details[0].message
                 })
             );
         }
