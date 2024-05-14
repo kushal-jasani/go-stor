@@ -4,6 +4,10 @@ const {
     deleteAddress
 } = require('../repository/address');
 
+const {
+    addressSchema
+} = require("../helper/order_validation_schema");
+
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
 exports.address = async (req, res, next) => {
@@ -54,6 +58,16 @@ exports.addressByAddressId = async (req, res, next) => {
 }
 
 exports.addAddress = async (req, res, next) => {
+    const { error } = addressSchema.validate(req.body);
+    if (error) {
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 400,
+                msg: error.details[0].message
+            })
+        );
+    }
     const { name, mobileNumber, email, address, pinCode } = req.body;
     try {
         const [updated] = await insertAddress({ user_id: req.user.userId, name, mobileNumber, email, address, pinCode })
