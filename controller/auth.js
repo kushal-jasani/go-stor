@@ -49,7 +49,7 @@ exports.register = async (req, res, next) => {
     }
 
     const phonewithcountrycode = "+91" + phoneno;
-    const response = await otpless.sendOTP(phonewithcountrycode, "", "SMS", "", "", 60, 4, clientId, clientSecret);
+    const response = await otpless.sendOTP(phonewithcountrycode, "", "SMS", "", "", 600, 6, clientId, clientSecret);
     if (response.success === false) {
       return sendHttpResponse(req, res, next,
         generateResponse({
@@ -163,7 +163,7 @@ exports.logIn = async (req, res, next) => {
         })
       );
     }
-    const response = await otpless.sendOTP(phonewithcountrycode, "", "SMS", "", "", 60, 4, clientId, clientSecret);
+    const response = await otpless.sendOTP(phonewithcountrycode, "", "SMS", "", "", 600, 6, clientId, clientSecret);
     if (response.success === false) {
       return sendHttpResponse(req, res, next,
         generateResponse({
