@@ -6,7 +6,7 @@ const {
   generateRefreshToken,
   verifyRefreshToken,
 } = require("../util/jwt");
-const { findUser,insertUser } = require("../repository/auth");
+const { findUser, insertUser } = require("../repository/auth");
 const clientId = process.env.OTPLESS_CLIENTID;
 const clientSecret = process.env.OTPLESS_CLIETSECRET;
 
@@ -17,10 +17,7 @@ exports.register = async (req, res, next) => {
     let [userResults] = await findUser(phoneno);
 
     if (userResults.length > 0) {
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+      return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 400,
           status: "error",
@@ -30,23 +27,9 @@ exports.register = async (req, res, next) => {
     }
 
     const phonewithcountrycode = "+91" + phoneno;
-    const response = await otpless.sendOTP(
-      phonewithcountrycode,
-      "",
-
-      "SMS",
-      "",
-      "",
-      60,
-      4,
-      clientId,
-      clientSecret
-    );
+    const response = await otpless.sendOTP(phonewithcountrycode, "", "SMS", "", "", 60, 4, clientId, clientSecret);
     if (response.success === false) {
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+      return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 400,
           status: "error",
@@ -54,10 +37,7 @@ exports.register = async (req, res, next) => {
         })
       );
     } else {
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+      return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 201,
           status: "success",
@@ -71,10 +51,7 @@ exports.register = async (req, res, next) => {
     }
   } catch {
     console.log("error while registering user", error);
-    return sendHttpResponse(
-      req,
-      res,
-      next,
+    return sendHttpResponse(req, res, next,
       generateResponse({
         status: "error",
         statusCode: 500,
@@ -88,20 +65,10 @@ exports.verifyRegisterOTP = async (req, res, next) => {
   try {
     const { name, email, phoneno, referral, otpid, enteredotp } = req.body;
     const phonewithcountrycode = "+91" + phoneno;
-    const varificationresponse = await otpless.verifyOTP(
-      "",
-      phonewithcountrycode,
-      otpid,
-      enteredotp,
-      clientId,
-      clientSecret
-    );
+    const varificationresponse = await otpless.verifyOTP("", phonewithcountrycode, otpid, enteredotp, clientId, clientSecret);
 
     if (varificationresponse.success === false) {
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+      return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 404,
           status: "error",
@@ -111,10 +78,7 @@ exports.verifyRegisterOTP = async (req, res, next) => {
     }
     if (varificationresponse.isOTPVerified === true) {
       const [userResults] = await insertUser(name, email, phoneno, referral);
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+      return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 201,
           status: "success",
@@ -122,22 +86,16 @@ exports.verifyRegisterOTP = async (req, res, next) => {
         })
       );
     }
-    return sendHttpResponse(
-      req,
-      res,
-      next,
+    return sendHttpResponse(req, res, next,
       generateResponse({
         statusCode: 404,
         status: "error",
         msg: varificationresponse.reason ? varificationresponse.reason : "entered otp is wrong,please try again😓",
-    })
+      })
     );
   } catch (error) {
     console.log(error);
-    return sendHttpResponse(
-      req,
-      res,
-      next,
+    return sendHttpResponse(req, res, next,
       generateResponse({
         status: "error",
         statusCode: 500,
@@ -155,10 +113,7 @@ exports.logIn = async (req, res, next) => {
     const [userResults] = await findUser(phoneno);
     const user = userResults[0];
     if (!user) {
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+      return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 404,
           status: "error",
@@ -166,22 +121,9 @@ exports.logIn = async (req, res, next) => {
         })
       );
     }
-    const response = await otpless.sendOTP(
-      phonewithcountrycode,
-      "",
-      "SMS",
-      "",
-      "",
-      60,
-      4,
-      clientId,
-      clientSecret
-    );
+    const response = await otpless.sendOTP(phonewithcountrycode, "", "SMS", "", "", 60, 4, clientId, clientSecret);
     if (response.success === false) {
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+      return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 400,
           status: "error",
@@ -190,10 +132,7 @@ exports.logIn = async (req, res, next) => {
       );
     } else {
       const otpid = response.orderId;
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+      return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 200,
           status: "success",
@@ -207,10 +146,7 @@ exports.logIn = async (req, res, next) => {
     }
   } catch (error) {
     console.log(error);
-    return sendHttpResponse(
-      req,
-      res,
-      next,
+    return sendHttpResponse(req, res, next,
       generateResponse({
         status: "error",
         statusCode: 500,
@@ -226,19 +162,9 @@ exports.varifyLoginOTP = async (req, res, next) => {
     const [userResults] = await findUser(phoneno);
     const user = userResults[0];
     const phonewithcountrycode = "+91" + phoneno;
-    const varificationresponse = await otpless.verifyOTP(
-      "",
-      phonewithcountrycode,
-      otpid,
-      enteredotp,
-      clientId,
-      clientSecret
-    );
+    const varificationresponse = await otpless.verifyOTP("", phonewithcountrycode, otpid, enteredotp, clientId, clientSecret);
     if (varificationresponse.success === false) {
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+      return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 404,
           status: "error",
@@ -249,10 +175,7 @@ exports.varifyLoginOTP = async (req, res, next) => {
     if (varificationresponse.isOTPVerified === true) {
       const accessToken = generateAccessToken(user.id);
       const refreshToken = generateRefreshToken(user.id);
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+      return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 200,
           status: "success",
@@ -263,24 +186,18 @@ exports.varifyLoginOTP = async (req, res, next) => {
         })
       );
     }
-    else{
-        return sendHttpResponse(
-            req,
-            res,
-            next,
-            generateResponse({
-              statusCode: 404,
-              status: "error",
-              msg: varificationresponse.reason ? varificationresponse.reason : "entered otp is wrong,please try again😓",
-            })
-          );
+    else {
+      return sendHttpResponse(req, res, next,
+        generateResponse({
+          statusCode: 404,
+          status: "error",
+          msg: varificationresponse.reason ? varificationresponse.reason : "entered otp is wrong,please try again😓",
+        })
+      );
     }
   } catch (error) {
     console.log("error while login", error);
-    return sendHttpResponse(
-      req,
-      res,
-      next,
+    return sendHttpResponse(req, res, next,
       generateResponse({
         status: "error",
         statusCode: 500,
@@ -291,104 +208,82 @@ exports.varifyLoginOTP = async (req, res, next) => {
 };
 
 exports.refreshAccessToken = async (req, res, next) => {
-    try {
-      const { refreshToken } = req.body;
-      const userId = verifyRefreshToken(refreshToken);
-      if (userId === "expired") {
-        return sendHttpResponse(
-          req,
-          res,
-          next,
-          generateResponse({
-            statusCode: 401,
-            status: "error",
-            msg: "Refresh token has expired⏳",
-          })
-        );
-      } else if (!userId) {
-        return sendHttpResponse(
-          req,
-          res,
-          next,
-          generateResponse({
-            statusCode: 401,
-            status: "error",
-            msg: "Invalid refresh token🚨",
-          })
-        );
-      }
-      const accessToken = generateAccessToken(userId);
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+  try {
+    const { refreshToken } = req.body;
+    const userId = verifyRefreshToken(refreshToken);
+    if (userId === "expired") {
+      return sendHttpResponse(req, res, next,
         generateResponse({
-          statusCode: 200,
-          status: "success",
-          msg: "New access token generated successfully🧾",
-          data: {
-            accessToken,
-          },
+          statusCode: 403,
+          status: "error",
+          msg: "Refresh token has expired⏳",
         })
       );
-    } catch (error) {
-      console.log("error while refreshing access token", error);
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+    } else if (!userId) {
+      return sendHttpResponse(req, res, next,
         generateResponse({
+          statusCode: 401,
           status: "error",
-          statusCode: 500,
-          msg: "internal server error",
+          msg: "Invalid refresh token🚨",
         })
       );
     }
-  };
+    const accessToken = generateAccessToken(userId);
+    return sendHttpResponse(req, res, next,
+      generateResponse({
+        statusCode: 200,
+        status: "success",
+        msg: "New access token generated successfully🧾",
+        data: {
+          accessToken,
+        },
+      })
+    );
+  } catch (error) {
+    console.log("error while refreshing access token", error);
+    return sendHttpResponse(req, res, next,
+      generateResponse({
+        status: "error",
+        statusCode: 500,
+        msg: "internal server error",
+      })
+    );
+  }
+};
 
 
 exports.resendOtp = async (req, res, next) => {
-    const { otpid } = req.body;
-    try {
-      const response = await otpless.resendOTP(otpid, clientId, clientSecret);
-      if (response.success === false) {
-        return sendHttpResponse(
-          req,
-          res,
-          next,
-          generateResponse({
-            status: "error",
-            statusCode: 400,
-            msg: response.errorMessage,
-          })
-        );
-      }
-      const newotpId = response.orderId;
-      return sendHttpResponse(
-        req,
-        res,
-        next,
-        generateResponse({
-          statusCode: 200,
-          status: "success",
-          data: {
-            otpid: newotpId,
-          },
-          msg: "otp resent successfully✅",
-        })
-      );
-    } catch (error) {
-      console.log(error);
-      return sendHttpResponse(
-        req,
-        res,
-        next,
+  const { otpid } = req.body;
+  try {
+    const response = await otpless.resendOTP(otpid, clientId, clientSecret);
+    if (response.success === false) {
+      return sendHttpResponse(req, res, next,
         generateResponse({
           status: "error",
-          statusCode: 500,
-          msg: "internal server error",
+          statusCode: 400,
+          msg: response.errorMessage,
         })
       );
     }
-  };
-  
+    const newotpId = response.orderId;
+    return sendHttpResponse(req, res, next,
+      generateResponse({
+        statusCode: 200,
+        status: "success",
+        data: {
+          otpid: newotpId,
+        },
+        msg: "otp resent successfully✅",
+      })
+    );
+  } catch (error) {
+    console.log(error);
+    return sendHttpResponse(req, res, next,
+      generateResponse({
+        status: "error",
+        statusCode: 500,
+        msg: "internal server error",
+      })
+    );
+  }
+};
