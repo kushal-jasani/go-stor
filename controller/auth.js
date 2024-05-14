@@ -110,6 +110,8 @@ exports.verifyRegisterOTP = async (req, res, next) => {
     }
     if (varificationresponse.isOTPVerified === true) {
       const [userResults] = await insertUser(name, email, phoneno, referral);
+      const accessToken = generateAccessToken(userResults.insertId);
+      const refreshToken = generateRefreshToken(userResults.insertId);
       return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 201,
