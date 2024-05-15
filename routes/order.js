@@ -5,9 +5,9 @@ const { isAuth } = require('../middleware/is-auth');
 
 const router = express.Router();
 
-router.get('/', isAuth, orderController.getOrders);
+router.get('/list', isAuth, orderController.getOrders);
 
-router.get('/:orderId', isAuth, orderController.getOrderByOrderId);
+router.get('/order/:orderId', isAuth, orderController.getOrderByOrderId);
 
 router.get('/order-summary', isAuth, orderController.getOrderSummary);
 
