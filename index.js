@@ -4,6 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser')
 
 const authRoutes = require('./routes/auth')
+const homeRoutes = require('./routes/home');
 const userRoutes = require('./routes/user')
 const productRoutes = require('./routes/products');
 const addressRoutes = require('./routes/address');
@@ -18,6 +19,7 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+app.use('/home', homeRoutes);
 app.use('/auth', authRoutes);
 app.use('/user', userRoutes);
 app.use('/shop', productRoutes);
