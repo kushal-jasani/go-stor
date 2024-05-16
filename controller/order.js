@@ -396,7 +396,10 @@ exports.getCheckout = async (req, res, next) => {
 }
 
 exports.stripeWebhook = async (req, res, next) => {
+    console.log(req.body)
+    console.log('type og body', typeof (req.body))
     const sig = req.headers['stripe-signature'];
+    console.log('sig', sig)
     const endpointSecret = process.env.STRIPE_END_POINT_SECRET;
     let event, orderId, invoiceNumber, paymentDetail;
     try {
