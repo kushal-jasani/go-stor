@@ -396,12 +396,11 @@ exports.getCheckout = async (req, res, next) => {
 }
 
 exports.stripeWebhook = async (req, res, next) => {
-    const payload = req.body;
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_END_POINT_SECRET;
     let event, orderId, invoiceNumber, paymentDetail;
     try {
-        event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
 
         // Handle the event
         switch (event.type) {
