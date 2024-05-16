@@ -442,7 +442,7 @@ exports.stripeWebhook = async (req, res, next) => {
 
                 [paymentDetail] = await getPaymentDetails(orderId);
                 invoiceNumber = paymentDetail[0].invoice_number
-                if (paymentDetail[0].status !== paymentIntentSucceeded.status) {
+                if (paymentDetail[0].status !== paymentIntentPaymentFailed.status) {
                     invoiceNumber = generateInvoiceNumber();
                 }
 
