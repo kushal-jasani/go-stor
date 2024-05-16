@@ -343,18 +343,18 @@ exports.getCheckout = async (req, res, next) => {
             amount: amountInPaisa,
             currency: 'usd',
             description: 'Order payment',
-            metadata: { orderId },
-            shipping: {
-                name: addressDetail[0].name,
-                address: {
-                    line1: addressDetail[0].address,
-                    line2: 'Address Line 2',
-                    city: 'Surat',
-                    postal_code: addressDetail[0].pin_code,
-                    state: 'Gujarat',
-                    country: 'IN',
-                }
-            }
+            metadata: { orderId }
+            // shipping: {
+            //     name: addressDetail[0].name,
+            //     address: {
+            //         line1: addressDetail[0].address,
+            //         line2: 'Address Line 2',
+            //         city: 'Surat',
+            //         postal_code: addressDetail[0].pin_code,
+            //         state: 'Gujarat',
+            //         country: 'IN',
+            //     }
+            // }
         };
         paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
         console.log(paymentIntent)
@@ -402,7 +402,7 @@ exports.stripeWebhook = async (req, res, next) => {
     try {
         try {
             console.log(req.rawBody)
-            console.log(typeof(req.rawBody))
+            console.log(typeof (req.rawBody))
             event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
         } catch (err) {
             console.error('⚠️  Webhook signature verification failed.', err.message);
