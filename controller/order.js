@@ -396,16 +396,14 @@ exports.getCheckout = async (req, res, next) => {
 }
 
 exports.stripeWebhook = async (req, res, next) => {
-    console.log(req.body)
-    let payload = JSON.stringify(req.body);
-    console.log('type og body', typeof (payload))
     const sig = req.headers['stripe-signature'];
-    console.log('sig', sig)
     const endpointSecret = process.env.STRIPE_END_POINT_SECRET;
     let event, orderId, invoiceNumber, paymentDetail;
     try {
         try {
-            event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
+            console.log(req.rawBody)
+            console.log(typeof(req.rawBody))
+            event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
         } catch (err) {
             console.error('⚠️  Webhook signature verification failed.', err.message);
             return res.status(400).send(`Webhook Error: ${err.message}`);

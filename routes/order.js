@@ -14,6 +14,6 @@ router.get('/order-summary', isAuth, orderController.getOrderSummary);
 
 router.post('/checkout', isAuth, orderController.getCheckout);
 
-router.post('/checkout/stripe/webhook', bodyParser.raw({ type: 'application/json' }), orderController.stripeWebhook);
+router.post('/checkout/stripe/webhook', orderController.stripeWebhook);
 
 module.exports = router;
