@@ -344,17 +344,17 @@ exports.getCheckout = async (req, res, next) => {
             currency: 'usd',
             description: 'Order payment',
             metadata: { orderId },
-            // shipping: {
-            //     name: addressDetail[0].name,
-            //     address: {
-            //         line1: addressDetail[0].address,
-            //         line2: 'Address Line 2',
-            //         city: 'Surat',
-            //         postal_code: addressDetail[0].pin_code,
-            //         state: 'Gujarat',
-            //         country: 'IN',
-            //     }
-            // }
+            shipping: {
+                name: addressDetail[0].name,
+                address: {
+                    line1: addressDetail[0].address,
+                    line2: 'Address Line 2',
+                    city: 'Surat',
+                    postal_code: addressDetail[0].pin_code,
+                    state: 'Gujarat',
+                    country: 'IN',
+                }
+            }
         };
         paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
         console.log(paymentIntent)
