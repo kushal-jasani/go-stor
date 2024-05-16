@@ -357,7 +357,6 @@ exports.getCheckout = async (req, res, next) => {
             // }
         };
         paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
-        console.log(paymentIntent)
 
         // update payment status in database
         const [paymentDetail] = await addPaymentDetail({ order_id: orderId, status: 'unpaid' });
@@ -401,8 +400,6 @@ exports.stripeWebhook = async (req, res, next) => {
     let event, orderId, invoiceNumber, paymentDetail;
     try {
         try {
-            console.log(req.rawBody)
-            console.log(typeof (req.rawBody))
             event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
         } catch (err) {
             console.error('⚠️  Webhook signature verification failed.', err.message);
