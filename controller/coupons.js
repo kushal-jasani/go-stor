@@ -212,6 +212,7 @@ exports.applyCoupon = async (req, res, next) => {
                 statusCode: 200,
                 msg: "Coupon can be applicable",
                 data: {
+                    couponId,
                     discount_amount
                 }
             })
