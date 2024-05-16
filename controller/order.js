@@ -342,7 +342,6 @@ exports.getCheckout = async (req, res, next) => {
             payment_method_types: ['card'],
             amount: amountInPaisa,
             currency: 'usd',
-            payment_method: "pm_card_visa",
             description: 'Order payment',
             metadata: { orderId },
             // shipping: {
