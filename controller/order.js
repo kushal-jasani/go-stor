@@ -344,7 +344,10 @@ exports.getCheckout = async (req, res, next) => {
             currency: 'inr',
             payment_method: "pm_card_visa",
             description: 'Order payment',
-            metadata: { orderId }
+            metadata: { orderId },
+            shipping_address_collection: {
+                allowed_countries: ['IN']
+            }
         };
         paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
         console.log(paymentIntent)
