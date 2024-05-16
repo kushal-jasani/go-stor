@@ -345,8 +345,16 @@ exports.getCheckout = async (req, res, next) => {
             payment_method: "pm_card_visa",
             description: 'Order payment',
             metadata: { orderId },
-            shipping_address_collection: {
-                allowed_countries: ['IN']
+            shipping: {
+                name: addressDetail[0].name,
+                address: {
+                    line1: addressDetail[0].address,
+                    line2: 'Address Line 2',
+                    city: 'Surat',
+                    postal_code: addressDetail[0].pin_code,
+                    state: 'Gujarat',
+                    country: 'IN',
+                }
             }
         };
         paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
