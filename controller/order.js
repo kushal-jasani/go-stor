@@ -351,7 +351,7 @@ exports.getCheckout = async (req, res, next) => {
                     city: addressDetail[0].city,
                     state: addressDetail[0].state,
                     postal_code: addressDetail[0].pin_code,
-                    country: 'India',
+                    country: 'IN',
                 },
             }
         };
