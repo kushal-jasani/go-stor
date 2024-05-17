@@ -68,9 +68,9 @@ exports.addAddress = async (req, res, next) => {
             })
         );
     }
-    const { name, mobileNumber, email, address, pinCode } = req.body;
+    const { name, mobileNumber, email, address, pinCode, city, state } = req.body;
     try {
-        const [updated] = await insertAddress({ user_id: req.user.userId, name, mobileNumber, email, address, pinCode })
+        const [updated] = await insertAddress({ user_id: req.user.userId, name, mobileNumber, email, address, pinCode, city, state })
         if (!updated.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({

@@ -5,7 +5,9 @@ const addressSchema = Joi.object({
     mobileNumber: Joi.string().pattern(/^[0-9]{10}$/).required(),
     email: Joi.string().email().required(),
     address: Joi.string().required(),
-    pinCode: Joi.string().pattern(/^[0-9]{6}$/).required()
+    pinCode: Joi.string().pattern(/^[0-9]{6}$/).required(),
+    city: Joi.string().required(),
+    state: Joi.string().required()
 });
 
 const productSchema = Joi.object({
