@@ -341,20 +341,19 @@ exports.getCheckout = async (req, res, next) => {
         const paymentIntentData = {
             payment_method_types: ['card'],
             amount: amountInPaisa,
-            currency: 'usd',
+            currency: 'inr',
             description: 'Order payment',
-            metadata: { orderId }
-            // shipping: {
-            //     name: addressDetail[0].name,
-            //     address: {
-            //         line1: addressDetail[0].address,
-            //         line2: 'Address Line 2',
-            //         city: 'Surat',
-            //         postal_code: addressDetail[0].pin_code,
-            //         state: 'Gujarat',
-            //         country: 'IN',
-            //     }
-            // }
+            metadata: { orderId },
+            shipping: {
+                name: addressDetail[0].name,
+                address: {
+                    line1: addressDetail[0].address,
+                    city: addressDetail[0].city,
+                    state: addressDetail[0].state,
+                    postal_code: addressDetail[0].pin_code,
+                    country: 'India',
+                },
+            }
         };
         paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
 
