@@ -17,7 +17,14 @@ require('dotenv').config();
 app.use(cors());
 
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(bodyParser.json({
+    verify: function (req, res, buf) {
+        var url = req.originalUrl;
+        if (url.startsWith('/orders/checkout/stripe/webhook')) {
+            req.rawBody = buf.toString()
+        }
+    }
+}));
 
 app.use('/home', homeRoutes);
 app.use('/auth', authRoutes);

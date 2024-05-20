@@ -367,7 +367,6 @@ const filterBySearch = async (productId) => {
             FROM
                 SpecValues`
 
-    console.log(sql, params)
     return await db.query(sql, params);
 }
 

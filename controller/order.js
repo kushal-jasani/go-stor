@@ -342,12 +342,20 @@ exports.getCheckout = async (req, res, next) => {
             payment_method_types: ['card'],
             amount: amountInPaisa,
             currency: 'inr',
-            payment_method: "pm_card_visa",
             description: 'Order payment',
-            metadata: { orderId }
+            metadata: { orderId },
+            shipping: {
+                name: addressDetail[0].name,
+                address: {
+                    line1: addressDetail[0].address,
+                    city: addressDetail[0].city,
+                    state: addressDetail[0].state,
+                    postal_code: addressDetail[0].pin_code,
+                    country: 'IN',
+                },
+            }
         };
         paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
-        console.log(paymentIntent)
 
         // update payment status in database
         const [paymentDetail] = await addPaymentDetail({ order_id: orderId, status: 'unpaid' });
@@ -386,12 +394,16 @@ exports.getCheckout = async (req, res, next) => {
 }
 
 exports.stripeWebhook = async (req, res, next) => {
-    const payload = JSON.stringify(req.body);
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_END_POINT_SECRET;
     let event, orderId, invoiceNumber, paymentDetail;
     try {
-        event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
+        try {
+            event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+        } catch (err) {
+            console.error('Webhook signature verification failed.', err.message);
+            return res.status(400).send(`Webhook Error: ${err.message}`);
+        }
 
         // Handle the event
         switch (event.type) {
@@ -426,7 +438,7 @@ exports.stripeWebhook = async (req, res, next) => {
 
                 [paymentDetail] = await getPaymentDetails(orderId);
                 invoiceNumber = paymentDetail[0].invoice_number
-                if (paymentDetail[0].status !== paymentIntentSucceeded.status) {
+                if (paymentDetail[0].status !== paymentIntentPaymentFailed.status) {
                     invoiceNumber = generateInvoiceNumber();
                 }
 
