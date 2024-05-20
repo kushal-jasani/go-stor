@@ -5,6 +5,6 @@ const { isAuth } = require('../middleware/is-auth');
 
 const router = express.Router();
 
-// router.get('/', isAuth, homeController.home);
+router.get('/', homeController.home);
 
 module.exports = router;
