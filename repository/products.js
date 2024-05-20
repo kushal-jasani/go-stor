@@ -90,6 +90,65 @@ const getProductsByCategoryId = async (categoryId, parsedPriceFilter, parsedOthe
     return await db.query(sql, params);
 }
 
+const getProductCountByCategoryId = async (categoryId, parsedPriceFilter, parsedOtherFilter, sortBy) => {
+    let sql = `SELECT DISTINCT
+            COUNT(DISTINCT p.id) AS total_products
+        FROM
+            products p`;
+
+    let params = [];
+
+    // Check if other filters are provided
+    if (parsedOtherFilter) {
+        let joinConditions = [];
+        let joinParams = [];
+
+        Object.entries(parsedOtherFilter).forEach(([key, values]) => {
+            // Ensure values is an array
+            if (!Array.isArray(values)) return;
+
+            if (values.length) {
+                // Construct the JOIN conditions
+                joinConditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
+                joinParams.push(key, ...values);
+            }
+        });
+
+        // Add the JOIN clause
+        if (joinConditions.length > 0) {
+            sql += ` INNER JOIN specifications sp ON p.id = sp.product_id AND (${joinConditions.join(' OR ')})`;
+            params.push(...joinParams);
+        }
+    }
+
+    // Add WHERE clause for category filter
+    sql += ` WHERE p.category_id = ?`;
+    params.push(categoryId);
+
+    // Add price filter conditions
+    if (parsedPriceFilter && parsedPriceFilter.minPrice !== undefined && parsedPriceFilter.maxPrice !== undefined) {
+        sql += ` AND p.selling_price BETWEEN ? AND ?`;
+        params.push(parsedPriceFilter.minPrice, parsedPriceFilter.maxPrice);
+    }
+
+    // Add sorting
+    switch (sortBy) {
+        case 'discount_percentage':
+            sql += ` ORDER BY discount_percentage DESC`;
+            break;
+        case 'selling_price_desc':
+            sql += ` ORDER BY p.selling_price DESC`;
+            break;
+        case 'selling_price_asc':
+            sql += ` ORDER BY p.selling_price ASC`;
+            break;
+        default:
+        // No sorting specified or invalid sorting type, leave it unsorted
+    }
+
+    return await db.query(sql, params);
+}
+
 const getProductsBySubCategoryId = async (subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit) => {
     let sql = `SELECT DISTINCT
             p.id AS product_id,
@@ -163,6 +222,65 @@ const getProductsBySubCategoryId = async (subCategoryId, parsedPriceFilter, pars
     return await db.query(sql, params);
 }
 
+const getProductCountBySubCategoryId = async (subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy) => {
+    let sql = `SELECT DISTINCT
+            COUNT(DISTINCT p.id) AS total_products
+        FROM
+            products p`;
+
+    let params = [];
+
+    // Check if other filters are provided
+    if (parsedOtherFilter) {
+        let joinConditions = [];
+        let joinParams = [];
+
+        Object.entries(parsedOtherFilter).forEach(([key, values]) => {
+            // Ensure values is an array
+            if (!Array.isArray(values)) return;
+
+            if (values.length) {
+                // Construct the JOIN conditions
+                joinConditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
+                joinParams.push(key, ...values);
+            }
+        });
+
+        // Add the JOIN clause
+        if (joinConditions.length > 0) {
+            sql += ` INNER JOIN specifications sp ON p.id = sp.product_id AND (${joinConditions.join(' OR ')})`;
+            params.push(...joinParams);
+        }
+    }
+
+    // Add WHERE clause for category filter
+    sql += ` WHERE p.subcategory_id = ?`;
+    params.push(subCategoryId);
+
+    // Add price filter conditions
+    if (parsedPriceFilter && parsedPriceFilter.minPrice !== undefined && parsedPriceFilter.maxPrice !== undefined) {
+        sql += ` AND p.selling_price BETWEEN ? AND ?`;
+        params.push(parsedPriceFilter.minPrice, parsedPriceFilter.maxPrice);
+    }
+
+    // Add sorting
+    switch (sortBy) {
+        case 'discount_percentage':
+            sql += ` ORDER BY discount_percentage DESC`;
+            break;
+        case 'selling_price_desc':
+            sql += ` ORDER BY p.selling_price DESC`;
+            break;
+        case 'selling_price_asc':
+            sql += ` ORDER BY p.selling_price ASC`;
+            break;
+        default:
+        // No sorting specified or invalid sorting type, leave it unsorted
+    }
+
+    return await db.query(sql, params);
+}
+
 const getProductByProductId = async (productId) => {
     let sql = `SELECT
             p.id AS product_id,
@@ -196,7 +314,7 @@ const getProductByProductId = async (productId) => {
     return await db.query(sql, params);
 }
 
-const searchProductList = async (searchText, parsedPriceFilter, parsedOtherFilter, sortBy) => {
+const searchProductList = async (searchText, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit) => {
     let params = [];
     let sql = `SELECT DISTINCT
             p.id AS product_id,
@@ -211,6 +329,74 @@ const searchProductList = async (searchText, parsedPriceFilter, parsedOtherFilte
             p.selling_price AS product_selling_price,
             CAST((p.MRP - p.selling_price) AS UNSIGNED) AS discount_amount,
             CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage
+        FROM products p
+        LEFT JOIN
+            subCategory s ON p.subcategory_id = s.id
+        JOIN
+            category c ON p.category_id = c.id
+        LEFT JOIN
+            specifications sp ON sp.product_id = p.id
+        WHERE
+            (c.name LIKE ? OR
+            s.name LIKE ? OR
+            p.product_name LIKE ? OR
+            (sp.key = 'brand' AND sp.value LIKE ?))`
+    const searchParam = `%${searchText}%`;
+    params.push(searchParam, searchParam, searchParam, searchParam)
+
+    if (parsedOtherFilter) {
+        let joinConditions = [];
+        let joinParams = [];
+
+        Object.entries(parsedOtherFilter).forEach(([key, values]) => {
+            // Ensure values is an array
+            if (!Array.isArray(values)) return;
+
+            if (values.length) {
+                // Construct the JOIN conditions
+                joinConditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
+                joinParams.push(key, ...values);
+            }
+        });
+
+        // Add the JOIN clause
+        if (joinConditions.length > 0) {
+            sql += ` AND (${joinConditions.join(' OR ')})`;
+            params.push(...joinParams);
+        }
+    }
+
+    // Add price filter conditions
+    if (parsedPriceFilter && parsedPriceFilter.minPrice !== undefined && parsedPriceFilter.maxPrice !== undefined) {
+        sql += ` AND p.selling_price BETWEEN ? AND ?`;
+        params.push(parsedPriceFilter.minPrice, parsedPriceFilter.maxPrice);
+    }
+
+    // Add sorting
+    switch (sortBy) {
+        case 'discount_percentage':
+            sql += ` ORDER BY discount_percentage DESC`;
+            break;
+        case 'selling_price_desc':
+            sql += ` ORDER BY p.selling_price DESC`;
+            break;
+        case 'selling_price_asc':
+            sql += ` ORDER BY p.selling_price ASC`;
+            break;
+        default:
+        // No sorting specified or invalid sorting type, leave it unsorted
+    }
+
+    // Add LIMIT and OFFSET
+    sql += ` LIMIT ?, ?`;
+    params.push(offset, limit);
+    return await db.query(sql, params);
+}
+
+const searchProductCount = async (searchText, parsedPriceFilter, parsedOtherFilter, sortBy) => {
+    let params = [];
+    let sql = `SELECT DISTINCT
+            COUNT(DISTINCT p.id) AS total_products
         FROM products p
         LEFT JOIN
             subCategory s ON p.subcategory_id = s.id
@@ -532,9 +718,12 @@ const getCategoryIdByProductId = async (productId) => {
 module.exports = {
     getCategoryList,
     getProductsByCategoryId,
+    getProductCountByCategoryId,
     getProductsBySubCategoryId,
+    getProductCountBySubCategoryId,
     getProductByProductId,
     searchProductList,
+    searchProductCount,
     categoryFilter,
     filterBySearch,
     // getBrandList,
