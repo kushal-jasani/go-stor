@@ -601,7 +601,7 @@ const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId, cate
             products p`
 
     if (productId) {
-        sql += ` WHERE p.id IN ?`
+        sql += ` WHERE p.id IN (?)`
         params.push(productId);
     }
 
@@ -633,7 +633,7 @@ const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId, cate
     return await db.query(sql, params);
 }
 
-const getOtherFilters = async ({ categoryId, subCategoryId, storeId }) => {
+const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId }) => {
     let params = [];
     let sql = `WITH SpecCount AS (
             SELECT
@@ -644,12 +644,12 @@ const getOtherFilters = async ({ categoryId, subCategoryId, storeId }) => {
             JOIN
                 products p ON sp.product_id = p.id
             WHERE`
-    if (categoryId) {
-        sql += ` p.category_id = ?`
-        params.push(categoryId)
-    } else if (subCategoryId) {
-        sql += ` p.subcategory_id = ?`
-        params.push(subCategoryId)
+    if (categoryIds) {
+        sql += ` p.category_id IN (?)`
+        params.push(categoryIds)
+    } else if (subCategoryIds) {
+        sql += ` p.subcategory_id IN (?)`
+        params.push(subCategoryIds)
     } else if (storeId) {
         sql += ` p.store_id = ?`
         params.push(storeId)
@@ -664,12 +664,12 @@ const getOtherFilters = async ({ categoryId, subCategoryId, storeId }) => {
             FROM
                 products p
             WHERE`
-    if (categoryId) {
-        sql += ` p.category_id = ?`
-        params.push(categoryId)
-    } else if (subCategoryId) {
-        sql += ` p.subcategory_id = ?`
-        params.push(subCategoryId)
+    if (categoryIds) {
+        sql += ` p.category_id IN (?)`
+        params.push(categoryIds)
+    } else if (subCategoryIds) {
+        sql += ` p.subcategory_id IN (?)`
+        params.push(subCategoryIds)
     } else if (storeId) {
         sql += ` p.store_id = ?`
         params.push(storeId)
@@ -707,12 +707,12 @@ const getOtherFilters = async ({ categoryId, subCategoryId, storeId }) => {
                     products p ON sp.product_id = p.id
                 WHERE
                     sp.key IN (SELECT spec_key FROM FilteredSpec) AND `
-    if (categoryId) {
-        sql += ` p.category_id = ?`
-        params.push(categoryId)
-    } else if (subCategoryId) {
-        sql += ` p.subcategory_id = ?`
-        params.push(subCategoryId)
+    if (categoryIds) {
+        sql += ` p.category_id IN (?)`
+        params.push(categoryIds)
+    } else if (subCategoryIds) {
+        sql += ` p.subcategory_id IN (?)`
+        params.push(subCategoryIds)
     } else if (storeId) {
         sql += ` p.store_id = ?`
         params.push(storeId)

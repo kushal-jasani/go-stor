@@ -62,15 +62,14 @@ exports.getProductsByCategoryId = async (req, res, next) => {
             console.error('Error parsing filters: ', error);
         }
 
-        const subCategoryId = undefined;
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
 
         const [categoryName] = await getCategoryName(categoryId);
-        const [maxPrice] = await getMaxPrice({ categoryId, subCategoryId });
+        const [maxPrice] = await getMaxPrice({ categoryId });
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
-        const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
+        const [otherFilters] = await getOtherFilters({ categoryIds: [categoryId] });
 
         const [products] = await getProductsByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
         const [productsCount] = await getProductCountByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, sortBy)
@@ -115,15 +114,14 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
             console.error('Error parsing filters: ', error);
         }
 
-        const categoryId = undefined;
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
 
         const [subCategoryName] = await getSubCategoryName(subCategoryId);
-        const [maxPrice] = await getMaxPrice({ categoryId, subCategoryId });
+        const [maxPrice] = await getMaxPrice({ subCategoryId });
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
-        const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
+        const [otherFilters] = await getOtherFilters({ subCategoryIds: [subCategoryId] });
 
         const [products] = await getProductsBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
         const [productsCount] = await getProductCountBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy)
