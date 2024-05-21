@@ -1,9 +1,12 @@
 const {
     getCategoryList,
     getProductsByCategoryId,
+    getProductCountByCategoryId,
     getProductsBySubCategoryId,
+    getProductCountBySubCategoryId,
     getProductByProductId,
     searchProductList,
+    searchProductCount,
     categoryFilter,
     filterBySearch,
     // getBrandList,
@@ -70,6 +73,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
         const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
 
         const [products] = await getProductsByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
+        const [productsCount] = await getProductCountByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, sortBy)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -79,6 +83,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
                 data: {
                     category_name: categoryName[0].name,
                     products: products.length ? products : `No products found`,
+                    total_products: productsCount.length,
                     filters: {
                         priceFilter1,
                         otherFilters
@@ -121,6 +126,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
         const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
 
         const [products] = await getProductsBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
+        const [productsCount] = await getProductCountBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -130,6 +136,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
                 data: {
                     subcategory_name: subCategoryName[0].name,
                     products: products.length ? products : `No products found`,
+                    total_products: productsCount.length,
                     filters: {
                         priceFilter1,
                         otherFilters
@@ -193,7 +200,13 @@ exports.search = async (req, res, next) => {
         } catch (error) {
             console.error('Error parsing filters: ', error);
         }
-        const [searchProducts] = await searchProductList(searchText, parsedPriceFilter, parsedOtherFilter, sortBy)
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const offset = (page - 1) * limit;
+
+        const [searchProducts] = await searchProductList(searchText, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
+        const [searchProductsCount] = await searchProductCount(searchText, parsedPriceFilter, parsedOtherFilter, sortBy)
 
         let productId = [];
         searchProducts.forEach(product => {
@@ -216,6 +229,7 @@ exports.search = async (req, res, next) => {
                 msg: 'searching products successfully',
                 data: {
                     searchProductList: searchProducts.length ? searchProducts : `No products found`,
+                    total_products: searchProductsCount.length,
                     filters: {
                         categoryFilter: (category && (category.length > 1)) ? category : undefined,
                         priceFilter1,

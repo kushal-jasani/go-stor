@@ -162,6 +162,15 @@ exports.getOrderSummary = async (req, res, next) => {
         let deliveryCharge = order_sub_total > 5999 ? 'FREE' : (order_sub_total * 0.02).toFixed(2)
         let discountAmount = 0;
         if (couponId) {
+            if (!req.user) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 200,
+                        msg: "User must be logIn for applying coupon",
+                    })
+                );
+            }
             const [coupon] = await getCouponByCouponId(couponId);
             if (!coupon.length) {
                 return sendHttpResponse(req, res, next,
@@ -172,7 +181,8 @@ exports.getOrderSummary = async (req, res, next) => {
                     })
                 );
             }
-            const { discount_type, discount_value, max_discount } = coupon[0]; let [orderCount] = await getOrderCount({ user_id: req.user.userId })
+            const { discount_type, discount_value, max_discount } = coupon[0];
+            let [orderCount] = await getOrderCount({ user_id: req.user.userId })
             let is_valid = await isApplicable(couponId, order_sub_total, orderCount)
             if (!is_valid) {
                 return sendHttpResponse(req, res, next,
