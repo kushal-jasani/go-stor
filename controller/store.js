@@ -1,7 +1,8 @@
 const {
     getStoreList,
     getStoreDetailByStoreId,
-    getProductsByStoreId
+    getProductsByStoreId,
+    getProductCountByStoreId
 } = require('../repository/store');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -54,6 +55,8 @@ exports.getProductsByStoreId = async (req, res, next) => {
         const offset = (page - 1) * limit;
         const [storeData] = await getStoreDetailByStoreId(storeId)
         const [products] = await getProductsByStoreId(storeId, offset, limit)
+        const [productsCount] = await getProductCountByStoreId(storeId, offset, limit)
+
         if (!products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -72,7 +75,8 @@ exports.getProductsByStoreId = async (req, res, next) => {
                 msg: 'Products fetched!',
                 data: {
                     storeData,
-                    products
+                    products,
+                    total_products: productsCount[0].total_products
                 }
             })
         );
