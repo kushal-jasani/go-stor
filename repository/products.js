@@ -585,15 +585,21 @@ const filterBySearch = async (productId) => {
 //     return await db.query(sql, params);
 // }
 
-const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId }) => {
+const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId, category_id, subcategory_id }) => {
+    const categoryIdList = category_id ? JSON.parse(category_id) : undefined;
+    const subcategoryIdList = subcategory_id ? JSON.parse(subcategory_id) : undefined;
     let params = [];
     let sql = `SELECT
-            CASE
-                WHEN MAX(p.selling_price) < 10000 THEN '10000'
-                ELSE FLOOR(MAX(p.selling_price) / 10000) * 10000
-            END AS max_price
+            COALESCE(
+                CASE
+                    WHEN MAX(p.selling_price) < 10000 THEN '10000'
+                    ELSE FLOOR(MAX(p.selling_price) / 10000) * 10000
+                END,
+                10000
+            ) AS max_price
         FROM 
             products p`
+
     if (productId) {
         sql += ` WHERE p.id IN ?`
         params.push(productId);
@@ -602,7 +608,9 @@ const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId }) =>
     if (categoryId) {
         sql += ' WHERE p.category_id = ?';
         params.push(categoryId);
-    } else if (subCategoryId) {
+    }
+
+    if (subCategoryId) {
         sql += ' WHERE p.subcategory_id = ?';
         params.push(subCategoryId);
     }
@@ -610,6 +618,16 @@ const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId }) =>
     if (storeId) {
         sql += ` WHERE p.store_id = ?`
         params.push(storeId);
+    }
+
+    if (categoryIdList) {
+        sql += ` WHERE p.category_id IN (?)`
+        params.push(categoryIdList);
+    }
+
+    if (subcategoryIdList) {
+        sql += ` WHERE p.category_id IN (?)`
+        params.push(subcategoryIdList);
     }
 
     return await db.query(sql, params);
