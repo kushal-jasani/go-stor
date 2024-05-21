@@ -33,8 +33,20 @@ const getProductsByStoreId = async (storeId, offset, limit) => {
     return await db.query(sql, params);
 }
 
+const getProductCountByStoreId = async (storeId) => {
+    let sql = `SELECT
+            COUNT(DISTINCT p.id) AS total_products
+        FROM
+            products p
+        WHERE p.store_id = ?`
+
+    let params = [storeId]
+    return await db.query(sql, params);
+}
+
 module.exports = {
     getStoreList,
     getStoreDetailByStoreId,
-    getProductsByStoreId
+    getProductsByStoreId,
+    getProductCountByStoreId
 };
