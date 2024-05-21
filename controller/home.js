@@ -12,6 +12,39 @@ const {
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
+const mergeSpecValues = (array1, array2) => {
+    // Create a map to store combined results
+    const map = {};
+
+    // Populate the map with entries from array1
+    array1.forEach(item => {
+        map[item.spec_key] = {
+            spec_key: item.spec_key,
+            spec_values: new Set(item.spec_values)
+        };
+    });
+
+    // Merge entries from array2 into the map
+    array2.forEach(item => {
+        if (map[item.spec_key]) {
+            // If the spec_key exists, merge the spec_values
+            item.spec_values.forEach(value => map[item.spec_key].spec_values.add(value));
+        } else {
+            // If the spec_key does not exist, add the new entry
+            map[item.spec_key] = {
+                spec_key: item.spec_key,
+                spec_values: new Set(item.spec_values)
+            };
+        }
+    });
+
+    // Convert the map back to an array, converting sets to arrays
+    return Object.values(map).map(item => ({
+        spec_key: item.spec_key,
+        spec_values: Array.from(item.spec_values)
+    }));
+}
+
 exports.home = async (req, res, next) => {
     try {
         const [banner] = await getBanner();
@@ -59,16 +92,27 @@ exports.getProductsByBannerId = async (req, res, next) => {
             bannerDiscount = bannerDetail[0].value
         }
 
-        let category_id, subcategory_id, max = 0;
+        let category_id, subcategory_id, max = 0, otherFilters1, otherFilters2;
         if (bannerDetail[0].category_id !== null) {
             category_id = bannerDetail[0].category_id;
             let [categoryMaxPrice] = await getMaxPrice({ category_id })
             max = Math.max(max, categoryMaxPrice[0].max_price);
+            [otherFilters1] = await getOtherFilters({ categoryIds: JSON.parse(category_id) });
         }
         if (bannerDetail[0].subcategory_id !== null) {
             subcategory_id = bannerDetail[0].subcategory_id;
             let [subcategoryMaxPrice] = await getMaxPrice({ subcategory_id })
             max = Math.max(max, subcategoryMaxPrice[0].max_price);
+            [otherFilters2] = await getOtherFilters({ subCategoryIds: JSON.parse(subcategory_id) });
+        }
+
+        let otherFilters;
+        if (otherFilters1 && otherFilters2) {
+            otherFilters = mergeSpecValues(otherFilters1, otherFilters2);
+        } else if (otherFilters1) {
+            otherFilters = otherFilters1
+        } else if (otherFilters2) {
+            otherFilters = otherFilters2
         }
 
         const priceFilter1 = { min_price: 0, max_price: max };
@@ -85,7 +129,8 @@ exports.getProductsByBannerId = async (req, res, next) => {
                     products: products.length ? products : `No products found`,
                     total_products: bannerProductsCount.length,
                     filters: {
-                        priceFilter1
+                        priceFilter1,
+                        otherFilters
                     }
                 }
             })
