@@ -83,7 +83,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
                 data: {
                     category_name: categoryName[0].name,
                     products: products.length ? products : `No products found`,
-                    total_products: productsCount[0].total_products,
+                    total_products: productsCount.length,
                     filters: {
                         priceFilter1,
                         otherFilters
@@ -136,7 +136,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
                 data: {
                     subcategory_name: subCategoryName[0].name,
                     products: products.length ? products : `No products found`,
-                    total_products: productsCount[0].total_products,
+                    total_products: productsCount.length,
                     filters: {
                         priceFilter1,
                         otherFilters
@@ -200,7 +200,7 @@ exports.search = async (req, res, next) => {
         } catch (error) {
             console.error('Error parsing filters: ', error);
         }
-        
+
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
@@ -229,7 +229,7 @@ exports.search = async (req, res, next) => {
                 msg: 'searching products successfully',
                 data: {
                     searchProductList: searchProducts.length ? searchProducts : `No products found`,
-                    total_products: searchProductsCount[0].total_products,
+                    total_products: searchProductsCount.length,
                     filters: {
                         categoryFilter: (category && (category.length > 1)) ? category : undefined,
                         priceFilter1,
