@@ -12,14 +12,6 @@ const {
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
-const calculateDiscountOnMrp = (products) => {
-    products.map(product => {
-        discount_amount = product.product_MRP - product.product_selling_price
-        product.discount_amount = discount_amount
-        product.discount_percentage = parseInt((discount_amount / product.product_MRP) * 100) + "%";
-    })
-}
-
 exports.getStore = async (req, res, next) => {
     try {
         const [storeList] = await getStoreList()
