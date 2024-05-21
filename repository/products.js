@@ -32,7 +32,7 @@ const getProductsByCategoryId = async (categoryId, parsedPriceFilter, parsedOthe
             CAST((p.MRP - p.selling_price) AS UNSIGNED) AS discount_amount,
             CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage
         FROM
-            products p`;
+            products p`
 
     let params = [];
 
@@ -92,9 +92,12 @@ const getProductsByCategoryId = async (categoryId, parsedPriceFilter, parsedOthe
 
 const getProductCountByCategoryId = async (categoryId, parsedPriceFilter, parsedOtherFilter, sortBy) => {
     let sql = `SELECT DISTINCT
-            COUNT(DISTINCT p.id) AS total_products
+            p.id AS product_id,
+            p.selling_price AS product_selling_price,
+            CAST((p.MRP - p.selling_price) AS UNSIGNED) AS discount_amount,
+            CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage
         FROM
-            products p`;
+            products p`
 
     let params = [];
 
@@ -224,7 +227,10 @@ const getProductsBySubCategoryId = async (subCategoryId, parsedPriceFilter, pars
 
 const getProductCountBySubCategoryId = async (subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy) => {
     let sql = `SELECT DISTINCT
-            COUNT(DISTINCT p.id) AS total_products
+            p.id AS product_id,
+            p.selling_price AS product_selling_price,
+            CAST((p.MRP - p.selling_price) AS UNSIGNED) AS discount_amount,
+            CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage
         FROM
             products p`;
 
@@ -396,7 +402,10 @@ const searchProductList = async (searchText, parsedPriceFilter, parsedOtherFilte
 const searchProductCount = async (searchText, parsedPriceFilter, parsedOtherFilter, sortBy) => {
     let params = [];
     let sql = `SELECT DISTINCT
-            COUNT(DISTINCT p.id) AS total_products
+            p.id AS product_id,
+            p.selling_price AS product_selling_price,
+            CAST((p.MRP - p.selling_price) AS UNSIGNED) AS discount_amount,
+            CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage
         FROM products p
         LEFT JOIN
             subCategory s ON p.subcategory_id = s.id
@@ -577,7 +586,8 @@ const filterBySearch = async (productId) => {
 //     return await db.query(sql, params);
 // }
 
-const getMaxPrice = async ({ categoryId, subCategoryId, productId }) => {
+const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId }) => {
+    let params = [];
     let sql = `SELECT
             CASE
                 WHEN MAX(p.selling_price) < 10000 THEN '10000'
@@ -590,7 +600,6 @@ const getMaxPrice = async ({ categoryId, subCategoryId, productId }) => {
         params.push(productId);
     }
 
-    let params = [];
     if (categoryId) {
         sql += ' WHERE p.category_id = ?';
         params.push(categoryId);
@@ -598,10 +607,16 @@ const getMaxPrice = async ({ categoryId, subCategoryId, productId }) => {
         sql += ' WHERE p.subcategory_id = ?';
         params.push(subCategoryId);
     }
+
+    if (storeId) {
+        sql += ` WHERE p.store_id = ?`
+        params.push(storeId);
+    }
+
     return await db.query(sql, params);
 }
 
-const getOtherFilters = async ({ categoryId, subCategoryId }) => {
+const getOtherFilters = async ({ categoryId, subCategoryId, storeId }) => {
     let params = [];
     let sql = `WITH SpecCount AS (
             SELECT
@@ -618,6 +633,9 @@ const getOtherFilters = async ({ categoryId, subCategoryId }) => {
     } else if (subCategoryId) {
         sql += ` p.subcategory_id = ?`
         params.push(subCategoryId)
+    } else if (storeId) {
+        sql += ` p.store_id = ?`
+        params.push(storeId)
     }
     sql += ` GROUP BY
                 sp.key
@@ -635,6 +653,9 @@ const getOtherFilters = async ({ categoryId, subCategoryId }) => {
     } else if (subCategoryId) {
         sql += ` p.subcategory_id = ?`
         params.push(subCategoryId)
+    } else if (storeId) {
+        sql += ` p.store_id = ?`
+        params.push(storeId)
     }
     sql += ` ),
         
@@ -652,7 +673,7 @@ const getOtherFilters = async ({ categoryId, subCategoryId }) => {
             FROM
                 SpecPercentage
             WHERE
-                percentage >= 75
+                percentage >= 8
         ),
         
         SpecValues AS (
@@ -675,6 +696,9 @@ const getOtherFilters = async ({ categoryId, subCategoryId }) => {
     } else if (subCategoryId) {
         sql += ` p.subcategory_id = ?`
         params.push(subCategoryId)
+    } else if (storeId) {
+        sql += ` p.store_id = ?`
+        params.push(storeId)
     }
     sql += ` ) AS subquery
             JOIN
