@@ -21,21 +21,14 @@ const { generateResponse, sendHttpResponse } = require("../helper/response");
 exports.getCategory = async (req, res, next) => {
     try {
         const [categoryList] = await getCategoryList()
-        if (!categoryList.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Category found.',
-                })
-            );
-        }
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'category fetched!',
-                data: categoryList
+                data: {
+                    categoryList: categoryList.length ? categoryList : `No category found`,
+                }
             })
         );
     } catch (err) {
