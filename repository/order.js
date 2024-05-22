@@ -1,6 +1,6 @@
 const db = require('../util/db');
 
-const getCurrentOrders = async ({ userId, offset, limit }) => {
+const getCurrentOrders = async ({ userId, currentOrderOffset, currentOrderLimit }) => {
     let sql = `SELECT
             o.id AS order_number,
             o.order_amount AS total_amount,
@@ -16,11 +16,23 @@ const getCurrentOrders = async ({ userId, offset, limit }) => {
             o.user_id = ? AND o.status IN ('placed', 'packed', 'shipped')
         LIMIT ?, ?`
 
-    let params = [userId, offset, limit]
+    let params = [userId, currentOrderOffset, currentOrderLimit]
     return await db.query(sql, params)
 }
 
-const getPastOrders = async ({ userId, offset, limit }) => {
+const getCurrentOrderCount = async ({ userId }) => {
+    let sql = `SELECT DISTINCT
+            o.id AS order_number
+        FROM
+            orders o
+        WHERE
+            o.user_id = ? AND o.status IN ('placed', 'packed', 'shipped')`
+
+    let params = [userId]
+    return await db.query(sql, params)
+}
+
+const getPastOrders = async ({ userId, pastOrderOffset, pastOrderLimit }) => {
     let sql = `SELECT
             o.id AS order_number,
             o.order_amount AS total_amount,
@@ -36,7 +48,19 @@ const getPastOrders = async ({ userId, offset, limit }) => {
             o.user_id = ? AND o.status IN ('delivered', 'cancel')
         LIMIT ?, ?`
 
-    let params = [userId, offset, limit]
+    let params = [userId, pastOrderOffset, pastOrderLimit]
+    return await db.query(sql, params)
+}
+
+const getPastOrderCount = async ({ userId }) => {
+    let sql = `SELECT DISTINCT
+            o.id AS order_number
+        FROM
+            orders o
+        WHERE
+            o.user_id = ? AND o.status IN ('delivered', 'cancel')`
+
+    let params = [userId]
     return await db.query(sql, params)
 }
 
@@ -143,7 +167,9 @@ const updatePaymentDetails = async (orderId, invoiceNumber, type, status) => {
 
 module.exports = {
     getCurrentOrders,
+    getCurrentOrderCount,
     getPastOrders,
+    getPastOrderCount,
     getOrderByOrderId,
     getOrderCount,
     addOrderDetail,
