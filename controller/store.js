@@ -1,5 +1,6 @@
 const {
     getStoreList,
+    getStoreCount,
     getStoreDetailByStoreId,
     getProductsByStoreId,
     getProductCountByStoreId
@@ -14,22 +15,22 @@ const { generateResponse, sendHttpResponse } = require("../helper/response");
 
 exports.getStore = async (req, res, next) => {
     try {
-        const [storeList] = await getStoreList()
-        if (!storeList.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Store found.',
-                })
-            );
-        }
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const offset = (page - 1) * limit;
+
+        const [storeList] = await getStoreList(offset, limit)
+        const [storeCount] = await getStoreCount()
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'store fetched!',
-                data: storeList
+                data: {
+                    storeList: storeList.length ? storeList : `No store found`,
+                    total_store: storeCount.length,
+                }
             })
         );
     } catch (err) {

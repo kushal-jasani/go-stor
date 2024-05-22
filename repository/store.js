@@ -1,7 +1,14 @@
 const db = require('../util/db');
 
-const getStoreList = async () => {
-    let sql = `SELECT id, name, state, profile_image FROM store`
+const getStoreList = async (offset, limit) => {
+    let sql = `SELECT id, name, state, profile_image FROM store LIMIT ?, ?`
+
+    let params = [offset, limit];
+    return await db.query(sql, params);
+}
+
+const getStoreCount = async () => {
+    let sql = `SELECT DISTINCT id FROM store`
     return await db.query(sql);
 }
 
@@ -148,6 +155,7 @@ const getProductCountByStoreId = async (storeId, parsedPriceFilter, parsedOtherF
 
 module.exports = {
     getStoreList,
+    getStoreCount,
     getStoreDetailByStoreId,
     getProductsByStoreId,
     getProductCountByStoreId
