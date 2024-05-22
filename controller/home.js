@@ -47,14 +47,33 @@ const mergeSpecValues = (array1, array2) => {
 
 exports.home = async (req, res, next) => {
     try {
-        const [banner] = await getBanner();
+        const [banners] = await getBanner();
+
+        const groupedBanners = banners.reduce((acc, banner) => {
+            const { vertical_priority, title } = banner;
+            if (!acc[vertical_priority]) {
+                acc[vertical_priority] = { title: title || "", vertical_priority, banners: [] };
+            }
+            acc[vertical_priority].banners.push(banner);
+            return acc;
+        }, {});
+
+        // Sort each group by horizontal_priority and transform into desired format
+        const bannerDetails = Object.values(groupedBanners).map(group => {
+            group.banners = group.banners.sort((a, b) => a.horizontal_priority - b.horizontal_priority).map(banner => ({
+                id: banner.banner_id,
+                image: banner.banner_image
+            }));
+            return group;
+        });
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Home',
                 data: {
-                    banner
+                    bannerDetails
                 }
             })
         );
