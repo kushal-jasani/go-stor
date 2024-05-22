@@ -207,9 +207,41 @@ const getBannerProductCount = async ({ categoryId, subCategoryId, bannerDiscount
     return await db.query(sql, params);
 };
 
+const getTopProductsByCategoryId = async (categoryIds) => {
+    let sql = `SELECT DISTINCT
+            oi.product_id AS product_id,
+            p.product_name,
+            (
+                SELECT i.image
+                FROM images i
+                WHERE i.product_id = p.id
+                LIMIT 1
+            ) AS images,
+            p.MRP AS product_MRP,
+            p.selling_price AS product_selling_price,
+            CAST((p.MRP - p.selling_price) AS UNSIGNED) AS discount_amount,
+            CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage
+        FROM
+            orderItems oi
+        JOIN
+            products p ON oi.product_id = p.id
+        WHERE
+            p.category_id IN (?)
+        ORDER BY
+        (
+            SELECT COUNT(*)
+            FROM orderItems oi2
+            WHERE oi2.product_id = p.id
+        ) DESC`
+        
+    let params = [categoryIds];
+    return await db.query(sql, params);
+};
+
 module.exports = {
     getBanner,
     getBannerDetail,
     getBannerProducts,
-    getBannerProductCount
+    getBannerProductCount,
+    getTopProductsByCategoryId
 };

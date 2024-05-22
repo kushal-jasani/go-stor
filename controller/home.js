@@ -2,7 +2,8 @@ const {
     getBanner,
     getBannerDetail,
     getBannerProducts,
-    getBannerProductCount
+    getBannerProductCount,
+    getTopProductsByCategoryId
 } = require('../repository/home');
 
 const {
@@ -67,6 +68,11 @@ exports.home = async (req, res, next) => {
             return group;
         });
 
+        let top_selling_categoryIds = [1, 2, 3, 4, 6, 9];
+        let top_selling_priority = [9, 12, 16, 19, 21, 23];
+        const [products] = await getTopProductsByCategoryId(top_selling_categoryIds)
+        console.log(products)
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
@@ -111,7 +117,7 @@ exports.getProductsByBannerId = async (req, res, next) => {
             bannerDiscount = bannerDetail[0].value
         }
 
-        let category_id, subcategory_id, max = 0, otherFilters1, otherFilters2;
+        let category_id, subcategory_id, brand, max = 0, otherFilters1, otherFilters2;
         if (bannerDetail[0].category_id !== null) {
             category_id = bannerDetail[0].category_id;
             let [categoryMaxPrice] = await getMaxPrice({ category_id })
