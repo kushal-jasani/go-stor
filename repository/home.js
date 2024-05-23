@@ -4,6 +4,7 @@ const getBanner = async () => {
     let sql = `SELECT
             b.id AS banner_id,
             b.title,
+            b.banner_type,
             b.image AS banner_image,
             b.horizontal_priority,
             b.vertical_priority
