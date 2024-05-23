@@ -51,16 +51,16 @@ exports.home = async (req, res, next) => {
         const [banners] = await getBanner();
 
         const groupedBanners = banners.reduce((acc, banner) => {
-            const { vertical_priority, title } = banner;
+            const { vertical_priority, title, banner_type } = banner;
             if (!acc[vertical_priority]) {
-                acc[vertical_priority] = { title: title || "", vertical_priority, banners: [] };
+                acc[vertical_priority] = { title: title || "", banner_type, vertical_priority, banners: [] };
             }
             acc[vertical_priority].banners.push(banner);
             return acc;
         }, {});
 
         // Sort each group by horizontal_priority and transform into desired format
-        const bannerDetails = Object.values(groupedBanners).map(group => {
+        const groupedBannerDetails = Object.values(groupedBanners).map(group => {
             group.banners = group.banners.sort((a, b) => a.horizontal_priority - b.horizontal_priority).map(banner => ({
                 id: banner.banner_id,
                 image: banner.banner_image
@@ -83,6 +83,7 @@ exports.home = async (req, res, next) => {
             if (!acc[category_id]) {
                 acc[category_id] = {
                     title: `Top Selling ${category_name}`,
+                    banner_type: `Products`,
                     vertical_priority: priorityMap[category_id],
                     products: []
                 };
@@ -92,7 +93,7 @@ exports.home = async (req, res, next) => {
         }, {});
 
         // Sort each group by horizontal_priority and transform into desired format
-        const topSellingProductsDetails = Object.values(groupedTopSellingProducts).map(group => {
+        const groupedTopSellingProductDetails = Object.values(groupedTopSellingProducts).map(group => {
             group.products = group.products.map(product => ({
                 product_id: product.product_id,
                 product_name: product.product_name,
@@ -105,14 +106,15 @@ exports.home = async (req, res, next) => {
             return group;
         });
 
+        let bannerDetails = [...groupedBannerDetails, ...groupedTopSellingProductDetails].sort((a, b) => a.vertical_priority - b.vertical_priority)
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Home',
                 data: {
-                    bannerDetails,
-                    topSellingProductsDetails
+                    bannerDetails
                 }
             })
         );
@@ -150,27 +152,33 @@ exports.getProductsByBannerId = async (req, res, next) => {
             bannerDiscount = bannerDetail[0].value
         }
 
-        let category_id, subcategory_id, max = 0, otherFilters1, otherFilters2;
-        if (bannerDetail[0].category_id !== null) {
-            category_id = bannerDetail[0].category_id;
-            let [categoryMaxPrice] = await getMaxPrice({ category_id })
-            max = Math.max(max, categoryMaxPrice[0].max_price);
-            [otherFilters1] = await getOtherFilters({ categoryIds: JSON.parse(category_id) });
-        }
-        if (bannerDetail[0].subcategory_id !== null) {
-            subcategory_id = bannerDetail[0].subcategory_id;
-            let [subcategoryMaxPrice] = await getMaxPrice({ subcategory_id })
-            max = Math.max(max, subcategoryMaxPrice[0].max_price);
-            [otherFilters2] = await getOtherFilters({ subCategoryIds: JSON.parse(subcategory_id) });
-        }
+        let category_id, subcategory_id, max = 0, otherFilters1, otherFilters2, otherFilters;
+        if (bannerDetail[0].specification_key === null) {
+            if (bannerDetail[0].category_id !== null) {
+                category_id = bannerDetail[0].category_id;
+                let [categoryMaxPrice] = await getMaxPrice({ category_id })
+                max = Math.max(max, categoryMaxPrice[0].max_price);
+                [otherFilters1] = await getOtherFilters({ categoryIds: JSON.parse(category_id) });
+            }
+            if (bannerDetail[0].subcategory_id !== null) {
+                subcategory_id = bannerDetail[0].subcategory_id;
+                let [subcategoryMaxPrice] = await getMaxPrice({ subcategory_id })
+                max = Math.max(max, subcategoryMaxPrice[0].max_price);
+                [otherFilters2] = await getOtherFilters({ subCategoryIds: JSON.parse(subcategory_id) });
+            }
 
-        let otherFilters;
-        if (otherFilters1 && otherFilters2) {
-            otherFilters = mergeSpecValues(otherFilters1, otherFilters2);
-        } else if (otherFilters1) {
-            otherFilters = otherFilters1
-        } else if (otherFilters2) {
-            otherFilters = otherFilters2
+            if (otherFilters1 && otherFilters2) {
+                otherFilters = mergeSpecValues(otherFilters1, otherFilters2);
+            } else if (otherFilters1) {
+                otherFilters = otherFilters1
+            } else if (otherFilters2) {
+                otherFilters = otherFilters2
+            }
+        } else if (bannerDetail[0].specification_key !== null) {
+            const { category_id, subcategory_id, specification_key, specification_value } = bannerDetail[0]
+            let [spKeyMaxPrice] = await getMaxPrice({ category_id, subcategory_id, specification_key, specification_value })
+            max = Math.max(max, spKeyMaxPrice[0].max_price);
+            [otherFilters] = await getOtherFilters({ categoryIds: JSON.parse(category_id), specification_key, specification_value });
         }
 
         const priceFilter1 = { min_price: 0, max_price: max };
