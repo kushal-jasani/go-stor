@@ -65,7 +65,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
         const [otherFilters] = await getOtherFilters({ categoryIds: [categoryId] });
 
         const [products] = await getProductsByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
-        const [productsCount] = await getProductCountByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, sortBy)
+        const [productsCount] = await getProductCountByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -117,7 +117,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
         const [otherFilters] = await getOtherFilters({ subCategoryIds: [subCategoryId] });
 
         const [products] = await getProductsBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
-        const [productsCount] = await getProductCountBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy)
+        const [productsCount] = await getProductCountBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
