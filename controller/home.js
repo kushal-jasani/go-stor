@@ -70,8 +70,40 @@ exports.home = async (req, res, next) => {
 
         let top_selling_categoryIds = [1, 2, 3, 4, 6, 9];
         let top_selling_priority = [9, 12, 16, 19, 21, 23];
-        const [products] = await getTopProductsByCategoryId(top_selling_categoryIds)
-        console.log(products)
+        const [topSellingProducts] = await getTopProductsByCategoryId(top_selling_categoryIds)
+
+        // Create a mapping of category_id to top_selling_priority
+        const priorityMap = top_selling_categoryIds.reduce((acc, categoryId, index) => {
+            acc[categoryId] = top_selling_priority[index];
+            return acc;
+        }, {});
+
+        const groupedTopSellingProducts = topSellingProducts.reduce((acc, product) => {
+            const { category_id, category_name } = product;
+            if (!acc[category_id]) {
+                acc[category_id] = {
+                    title: `Top Selling ${category_name}`,
+                    vertical_priority: priorityMap[category_id],
+                    products: []
+                };
+            }
+            acc[category_id].products.push(product);
+            return acc;
+        }, {});
+
+        // Sort each group by horizontal_priority and transform into desired format
+        const topSellingProductsDetails = Object.values(groupedTopSellingProducts).map(group => {
+            group.products = group.products.map(product => ({
+                product_id: product.product_id,
+                product_name: product.product_name,
+                images: product.images,
+                product_MRP: product.product_MRP,
+                product_selling_price: product.product_selling_price,
+                discount_amount: product.discount_amount,
+                discount_percentage: product.discount_percentage,
+            }));
+            return group;
+        });
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -79,7 +111,8 @@ exports.home = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Home',
                 data: {
-                    bannerDetails
+                    bannerDetails,
+                    topSellingProductsDetails
                 }
             })
         );
@@ -117,7 +150,7 @@ exports.getProductsByBannerId = async (req, res, next) => {
             bannerDiscount = bannerDetail[0].value
         }
 
-        let category_id, subcategory_id, brand, max = 0, otherFilters1, otherFilters2;
+        let category_id, subcategory_id, max = 0, otherFilters1, otherFilters2;
         if (bannerDetail[0].category_id !== null) {
             category_id = bannerDetail[0].category_id;
             let [categoryMaxPrice] = await getMaxPrice({ category_id })

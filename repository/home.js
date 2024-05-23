@@ -211,6 +211,8 @@ const getTopProductsByCategoryId = async (categoryIds) => {
     let sql = `SELECT DISTINCT
             oi.product_id AS product_id,
             p.product_name,
+            p.category_id,
+            c.name AS category_name,
             (
                 SELECT i.image
                 FROM images i
@@ -220,20 +222,23 @@ const getTopProductsByCategoryId = async (categoryIds) => {
             p.MRP AS product_MRP,
             p.selling_price AS product_selling_price,
             CAST((p.MRP - p.selling_price) AS UNSIGNED) AS discount_amount,
-            CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage
+            CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage,
+            (
+                SELECT COUNT(*)
+                FROM orderItems oi2
+                WHERE oi2.product_id = p.id
+            ) AS total_count
         FROM
             orderItems oi
         JOIN
             products p ON oi.product_id = p.id
+        JOIN
+            category c ON p.category_id = c.id
         WHERE
             p.category_id IN (?)
         ORDER BY
-        (
-            SELECT COUNT(*)
-            FROM orderItems oi2
-            WHERE oi2.product_id = p.id
-        ) DESC`
-        
+            total_count DESC`
+
     let params = [categoryIds];
     return await db.query(sql, params);
 };
