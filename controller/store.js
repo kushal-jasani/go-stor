@@ -67,7 +67,7 @@ exports.getProductsByStoreId = async (req, res, next) => {
 
         const [storeData] = await getStoreDetailByStoreId(storeId)
         const [products] = await getProductsByStoreId(storeId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
-        const [productsCount] = await getProductCountByStoreId(storeId, parsedPriceFilter, parsedOtherFilter, sortBy)
+        const [productsCount] = await getProductCountByStoreId(storeId, parsedPriceFilter, parsedOtherFilter)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
