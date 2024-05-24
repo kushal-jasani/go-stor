@@ -21,6 +21,13 @@ const getBannerDetail = async (bannerId) => {
     return await db.query(sql, params)
 }
 
+const getBannerDetailByBannerIds = async (bannerIds) => {
+    let sql = `SELECT * FROM bannerDescription WHERE banner_id IN (?)`
+
+    let params = [bannerIds]
+    return await db.query(sql, params)
+}
+
 const getBannerProducts = async ({ categoryId, subCategoryId, bannerDiscount, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit }) => {
     const bannerDiscount1 = parseFloat(bannerDiscount.replace('%', ''));
     const categoryIdList = categoryId ? JSON.parse(categoryId) : [];
@@ -250,6 +257,7 @@ const getTopProductsByCategoryId = async (categoryIds) => {
 module.exports = {
     getBanner,
     getBannerDetail,
+    getBannerDetailByBannerIds,
     getBannerProducts,
     getBannerProductCount,
     getTopProductsByCategoryId

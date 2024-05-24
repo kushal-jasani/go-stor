@@ -1,6 +1,7 @@
 const {
     getBanner,
     getBannerDetail,
+    getBannerDetailByBannerIds,
     getBannerProducts,
     getBannerProductCount
 } = require('../repository/home');
@@ -75,30 +76,39 @@ exports.home = async (req, res, next) => {
 
         const productBanners = banners.filter(banner => banner.banner_type === 'Products');
         // Fetch banner descriptions and products, then build the groupedBannerDetails for product banners
-        const productGroupedBannerDetails = await Promise.all(productBanners.map(async banner => {
-            const { vertical_priority, title, banner_type, banner_id } = banner;
-            const [bannerDescriptions] = await getBannerDetail(banner_id);
-            const { product_id: productIds } = bannerDescriptions[0];
+        const bannerIds = productBanners.map(banner => banner.banner_id);
+        const [bannerDescriptions] = await getBannerDetailByBannerIds(bannerIds);
+        const productIds = bannerDescriptions
+            .map(bannerDescription => bannerDescription.product_id ? JSON.parse(bannerDescription.product_id) : [])
+            .flat();
 
-            if (!productIds) {
-                return null;  // Skip if productIds is null, undefined, or empty
-            }
+        let productGroupedBannerDetails;
+        if (productIds.length > 0) {
+            // Fetch all product details in one go
+            const [products] = await getProductsByProductIds(productIds);
 
-            let parsedProductIds = JSON.parse(productIds);
-            const [products] = await getProductsByProductIds(parsedProductIds);
+            // Create a map for easy lookup of product details by product_id
+            const productsMap = products.reduce((acc, product) => {
+                acc[product.product_id] = product;
+                return acc;
+            }, {});
 
-            return {
-                title: title || "",
-                banner_type,
-                vertical_priority,
-                products: products
-            };
-        }));
+            // Combine the details
+            productGroupedBannerDetails = productBanners.map(banner => {
+                const { vertical_priority, title, banner_type, banner_id } = banner;
+                const bannerDescription = bannerDescriptions.find(desc => desc.banner_id === banner_id);
+                const productIds = bannerDescription.product_id ? JSON.parse(bannerDescription.product_id) : [];
 
-        // Filter out any null values from the result
-        const filteredProductGroupedBannerDetails = productGroupedBannerDetails.filter(detail => detail !== null);
+                return {
+                    title: title || "",
+                    banner_type,
+                    vertical_priority,
+                    products: productIds.map(id => productsMap[id]).filter(product => product)
+                };
+            }).filter(detail => detail.products.length > 0); // Filter out any entries without products
+        }
 
-        let bannerDetails = [...groupedBannerDetails, ...filteredProductGroupedBannerDetails].sort((a, b) => a.vertical_priority - b.vertical_priority)
+        let bannerDetails = [...groupedBannerDetails, ...productGroupedBannerDetails].sort((a, b) => a.vertical_priority - b.vertical_priority)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
