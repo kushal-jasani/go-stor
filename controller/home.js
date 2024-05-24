@@ -7,6 +7,7 @@ const {
 } = require('../repository/home');
 
 const {
+    getProductsByProductIds,
     getMaxPrice,
     getOtherFilters
 } = require('../repository/products');
@@ -68,6 +69,23 @@ exports.home = async (req, res, next) => {
             return group;
         });
 
+        let catch_of_the_day_productIds = [1, 5, 8, 9, 10, 12, 13, 14, 16, 17];
+        const [catchOfTheDayProducts] = await getProductsByProductIds(catch_of_the_day_productIds)
+        let catchOfTheDay = {
+            title: `Catch Of The Day`,
+            banner_type: `Products`,
+            vertical_priority: 2,
+            products: catchOfTheDayProducts
+        }
+
+        const [topSeller] = await getTopProductsByCategoryId()
+        let topSellers = {
+            title: `Top Sellers`,
+            banner_type: `Products`,
+            vertical_priority: 6,
+            products: topSeller
+        }
+
         let top_selling_categoryIds = [1, 2, 3, 4, 6, 9];
         let top_selling_priority = [9, 12, 16, 19, 21, 23];
         const [topSellingProducts] = await getTopProductsByCategoryId(top_selling_categoryIds)
@@ -106,7 +124,7 @@ exports.home = async (req, res, next) => {
             return group;
         });
 
-        let bannerDetails = [...groupedBannerDetails, ...groupedTopSellingProductDetails].sort((a, b) => a.vertical_priority - b.vertical_priority)
+        let bannerDetails = [...groupedBannerDetails, catchOfTheDay, topSellers, ...groupedTopSellingProductDetails].sort((a, b) => a.vertical_priority - b.vertical_priority)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -137,7 +155,7 @@ exports.getProductsByBannerId = async (req, res, next) => {
         let parsedPriceFilter, parsedOtherFilter;
         try {
             parsedPriceFilter = priceFilter ? JSON.parse(priceFilter) : undefined;
-            parsedOtherFilter = others ? JSON.parse(others) : undefined;
+            parsedOtherFilter = others ? JSON.parse(others) : [];
         } catch (error) {
             console.error('Error parsing filters: ', error);
         }
@@ -148,20 +166,20 @@ exports.getProductsByBannerId = async (req, res, next) => {
 
         let bannerDiscount;
         const [bannerDetail] = await getBannerDetail(bannerId)
-        if (bannerDetail[0].key === 'discount upto') {
-            bannerDiscount = bannerDetail[0].value
+        let { category_id, subcategory_id, key, value, specification_key, specification_value } = bannerDetail[0];
+
+        if (key === 'discount upto') {
+            bannerDiscount = value
         }
 
-        let category_id, subcategory_id, max = 0, otherFilters1, otherFilters2, otherFilters;
-        if (bannerDetail[0].specification_key === null) {
-            if (bannerDetail[0].category_id !== null) {
-                category_id = bannerDetail[0].category_id;
+        let max = 0, otherFilters1, otherFilters2, otherFilters;
+        if (specification_key === null) {
+            if (category_id !== null) {
                 let [categoryMaxPrice] = await getMaxPrice({ category_id })
                 max = Math.max(max, categoryMaxPrice[0].max_price);
                 [otherFilters1] = await getOtherFilters({ categoryIds: JSON.parse(category_id) });
             }
-            if (bannerDetail[0].subcategory_id !== null) {
-                subcategory_id = bannerDetail[0].subcategory_id;
+            if (subcategory_id !== null) {
                 let [subcategoryMaxPrice] = await getMaxPrice({ subcategory_id })
                 max = Math.max(max, subcategoryMaxPrice[0].max_price);
                 [otherFilters2] = await getOtherFilters({ subCategoryIds: JSON.parse(subcategory_id) });
@@ -174,13 +192,23 @@ exports.getProductsByBannerId = async (req, res, next) => {
             } else if (otherFilters2) {
                 otherFilters = otherFilters2
             }
-        } else if (bannerDetail[0].specification_key !== null) {
-            const { category_id, subcategory_id, specification_key, specification_value } = bannerDetail[0]
+        } else if (specification_key !== null && specification_value !== null) {
+            let parsedSpecificationValue = JSON.parse(specification_value);
+
+            if (parsedOtherFilter.hasOwnProperty(specification_key)) {
+                let existingValues = new Set(parsedOtherFilter[specification_key]);
+                for (let value of parsedSpecificationValue) {
+                    existingValues.add(value.toString());
+                }
+                parsedOtherFilter[specification_key] = Array.from(existingValues);
+            } else {
+                parsedOtherFilter[specification_key] = parsedSpecificationValue.map(value => value.toString());
+            }
+
             let [spKeyMaxPrice] = await getMaxPrice({ category_id, subcategory_id, specification_key, specification_value })
             max = Math.max(max, spKeyMaxPrice[0].max_price);
             [otherFilters] = await getOtherFilters({ categoryIds: JSON.parse(category_id), specification_key, specification_value });
         }
-
         const priceFilter1 = { min_price: 0, max_price: max };
 
         const [products] = await getBannerProducts({ categoryId: category_id, subCategoryId: subcategory_id, bannerDiscount, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit });
