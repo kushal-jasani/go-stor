@@ -12,7 +12,7 @@ exports.sendHttpResponse = async (req, res, next, ApiResponse) => {
     res.json(ApiResponse).end();
 };
 
-exports.generateResponse = ({statusCode, status, data, msg}) => {
+exports.generateResponse = ({ statusCode, status, data, msg }) => {
     if (status && ['success', 'error'].includes(status)) {
         if (status === 'success') {
             return {
