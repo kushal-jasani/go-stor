@@ -1,4 +1,3 @@
-require("dotenv").config();
 const otpless = require("otpless-node-js-auth-sdk");
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 const clientId = process.env.OTPLESS_CLIENTID;
