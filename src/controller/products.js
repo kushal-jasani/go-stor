@@ -1,9 +1,12 @@
 const {
     getCategoryList,
     getProductsByCategoryId,
+    getProductCountByCategoryId,
     getProductsBySubCategoryId,
+    getProductCountBySubCategoryId,
     getProductByProductId,
     searchProductList,
+    searchProductCount,
     categoryFilter,
     filterBySearch,
     // getBrandList,
@@ -18,21 +21,14 @@ const { generateResponse, sendHttpResponse } = require("../helper/response");
 exports.getCategory = async (req, res, next) => {
     try {
         const [categoryList] = await getCategoryList()
-        if (!categoryList.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Category found.',
-                })
-            );
-        }
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'category fetched!',
-                data: categoryList
+                data: {
+                    categoryList: categoryList.length ? categoryList : `No category found`,
+                }
             })
         );
     } catch (err) {
@@ -59,17 +55,17 @@ exports.getProductsByCategoryId = async (req, res, next) => {
             console.error('Error parsing filters: ', error);
         }
 
-        const subCategoryId = undefined;
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
 
         const [categoryName] = await getCategoryName(categoryId);
-        const [maxPrice] = await getMaxPrice({ categoryId, subCategoryId });
+        const [maxPrice] = await getMaxPrice({ categoryId });
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
-        const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
+        const [otherFilters] = await getOtherFilters({ categoryIds: [categoryId] });
 
         const [products] = await getProductsByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
+        const [productsCount] = await getProductCountByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -79,6 +75,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
                 data: {
                     category_name: categoryName[0].name,
                     products: products.length ? products : `No products found`,
+                    total_products: productsCount.length,
                     filters: {
                         priceFilter1,
                         otherFilters
@@ -110,17 +107,17 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
             console.error('Error parsing filters: ', error);
         }
 
-        const categoryId = undefined;
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
 
         const [subCategoryName] = await getSubCategoryName(subCategoryId);
-        const [maxPrice] = await getMaxPrice({ categoryId, subCategoryId });
+        const [maxPrice] = await getMaxPrice({ subCategoryId });
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
-        const [otherFilters] = await getOtherFilters({ categoryId, subCategoryId });
+        const [otherFilters] = await getOtherFilters({ subCategoryIds: [subCategoryId] });
 
         const [products] = await getProductsBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
+        const [productsCount] = await getProductCountBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -130,6 +127,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
                 data: {
                     subcategory_name: subCategoryName[0].name,
                     products: products.length ? products : `No products found`,
+                    total_products: productsCount.length,
                     filters: {
                         priceFilter1,
                         otherFilters
@@ -193,7 +191,13 @@ exports.search = async (req, res, next) => {
         } catch (error) {
             console.error('Error parsing filters: ', error);
         }
-        const [searchProducts] = await searchProductList(searchText, parsedPriceFilter, parsedOtherFilter, sortBy)
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const offset = (page - 1) * limit;
+
+        const [searchProducts] = await searchProductList(searchText, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
+        const [searchProductsCount] = await searchProductCount(searchText, parsedPriceFilter, parsedOtherFilter, sortBy)
 
         let productId = [];
         searchProducts.forEach(product => {
@@ -216,6 +220,7 @@ exports.search = async (req, res, next) => {
                 msg: 'searching products successfully',
                 data: {
                     searchProductList: searchProducts.length ? searchProducts : `No products found`,
+                    total_products: searchProductsCount.length,
                     filters: {
                         categoryFilter: (category && (category.length > 1)) ? category : undefined,
                         priceFilter1,

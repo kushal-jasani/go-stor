@@ -8,6 +8,7 @@ const verifyRegisterOtpSchema = Joi.object({
     name: Joi.string().required(),
     phoneno: Joi.string().pattern(/^\d{10}$/).required(),
     email: Joi.string().email().required(),
+    referral: Joi.string().optional().allow(null, ''),
     otpid: Joi.string().required(),
     enteredotp: Joi.string().pattern(/^\d{6}$/).required()
 });

@@ -12,5 +12,4 @@ router.post('/resendotp', authController.resendOtp);
 
 router.post('/refreshAccessToken', authController.refreshAccessToken);
 
-
 module.exports = router;
