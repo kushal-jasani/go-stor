@@ -1,7 +1,7 @@
 const express = require('express');
 
 const couponController = require('../controller/coupons');
-const { isAuth } = require('../middleware/is-auth');
+const { isAuth } = require('../middleware/isAuth');
 
 const router = express.Router();
 
