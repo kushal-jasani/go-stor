@@ -6,7 +6,7 @@ const {
 
 const {
     addressSchema
-} = require("../helper/order_validation_schema");
+} = require("../validator/orderValidationSchema");
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 

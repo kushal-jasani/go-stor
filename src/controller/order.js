@@ -27,7 +27,7 @@ const {
 
 const {
     productsSchema
-} = require("../helper/order_validation_schema");
+} = require("../validator/orderValidationSchema");
 
 const uuid = require('uuid');
 const stripe = require('stripe')(process.env.STRIPE_KEY);
