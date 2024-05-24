@@ -78,6 +78,15 @@ exports.home = async (req, res, next) => {
             products: catchOfTheDayProducts
         }
 
+        let summer_savings_productIds = [17];
+        const [SummerSavingsProducts] = await getProductsByProductIds(summer_savings_productIds)
+        let SummerSavings = {
+            title: `Summer Savings`,
+            banner_type: `Products`,
+            vertical_priority: 4,
+            products: SummerSavingsProducts
+        }
+
         const [topSeller] = await getTopProductsByCategoryId()
         let topSellers = {
             title: `Top Sellers`,
@@ -124,7 +133,7 @@ exports.home = async (req, res, next) => {
             return group;
         });
 
-        let bannerDetails = [...groupedBannerDetails, catchOfTheDay, topSellers, ...groupedTopSellingProductDetails].sort((a, b) => a.vertical_priority - b.vertical_priority)
+        let bannerDetails = [...groupedBannerDetails, catchOfTheDay, SummerSavings, topSellers, ...groupedTopSellingProductDetails].sort((a, b) => a.vertical_priority - b.vertical_priority)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
