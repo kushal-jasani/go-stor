@@ -21,7 +21,7 @@ const {
   verifyLoginOtpSchema,
   refreshAccessTokenSchema,
   resendOtpSchema
-} = require("../helper/auth_validation_schema");
+} = require("../validator/authValidationSchema");
 
 exports.register = async (req, res, next) => {
   const { error } = sendOtpSchema.validate(req.body);

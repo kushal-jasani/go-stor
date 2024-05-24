@@ -1,18 +1,17 @@
-const express=require('express');
-const app=express();
+const express = require('express');
+const app = express();
 const cors = require('cors');
-const bodyparser=require('body-parser')
+const bodyParser = require('body-parser')
 
-const authRoutes=require('./routes/auth')
-const userRoutes=require('./routes/user')
+const indexRoutes = require('./src/routes/index');
 
 require('dotenv').config();
 
 app.use(cors());
 
-app.use(bodyparser.urlencoded({extended:true}));
-app.use(bodyparser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
-app.use('/auth',authRoutes);
-app.use('/user',userRoutes);
+app.use(indexRoutes);
+
 app.listen(process.env.PORT);
