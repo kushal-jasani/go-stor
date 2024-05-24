@@ -2,8 +2,7 @@ const {
     getBanner,
     getBannerDetail,
     getBannerProducts,
-    getBannerProductCount,
-    getTopProductsByCategoryId
+    getBannerProductCount
 } = require('../repository/home');
 
 const {
@@ -53,10 +52,15 @@ exports.home = async (req, res, next) => {
 
         const groupedBanners = banners.reduce((acc, banner) => {
             const { vertical_priority, title, banner_type } = banner;
-            if (!acc[vertical_priority]) {
-                acc[vertical_priority] = { title: title || "", banner_type, vertical_priority, banners: [] };
+
+            // Only process banners that are not of type "products"
+            if (banner_type !== 'Products') {
+                if (!acc[vertical_priority]) {
+                    acc[vertical_priority] = { title: title || "", banner_type, vertical_priority, banners: [] };
+                }
+                acc[vertical_priority].banners.push(banner);
             }
-            acc[vertical_priority].banners.push(banner);
+
             return acc;
         }, {});
 
@@ -69,71 +73,32 @@ exports.home = async (req, res, next) => {
             return group;
         });
 
-        let catch_of_the_day_productIds = [1, 5, 8, 9, 10, 12, 13, 14, 16, 17];
-        const [catchOfTheDayProducts] = await getProductsByProductIds(catch_of_the_day_productIds)
-        let catchOfTheDay = {
-            title: `Catch Of The Day`,
-            banner_type: `Products`,
-            vertical_priority: 2,
-            products: catchOfTheDayProducts
-        }
+        const productBanners = banners.filter(banner => banner.banner_type === 'Products');
+        // Fetch banner descriptions and products, then build the groupedBannerDetails for product banners
+        const productGroupedBannerDetails = await Promise.all(productBanners.map(async banner => {
+            const { vertical_priority, title, banner_type, banner_id } = banner;
+            const [bannerDescriptions] = await getBannerDetail(banner_id);
+            const { product_id: productIds } = bannerDescriptions[0];
 
-        let summer_savings_productIds = [17];
-        const [SummerSavingsProducts] = await getProductsByProductIds(summer_savings_productIds)
-        let SummerSavings = {
-            title: `Summer Savings`,
-            banner_type: `Products`,
-            vertical_priority: 4,
-            products: SummerSavingsProducts
-        }
-
-        const [topSeller] = await getTopProductsByCategoryId()
-        let topSellers = {
-            title: `Top Sellers`,
-            banner_type: `Products`,
-            vertical_priority: 6,
-            products: topSeller
-        }
-
-        let top_selling_categoryIds = [1, 2, 3, 4, 6, 9];
-        let top_selling_priority = [9, 12, 16, 19, 21, 23];
-        const [topSellingProducts] = await getTopProductsByCategoryId(top_selling_categoryIds)
-
-        // Create a mapping of category_id to top_selling_priority
-        const priorityMap = top_selling_categoryIds.reduce((acc, categoryId, index) => {
-            acc[categoryId] = top_selling_priority[index];
-            return acc;
-        }, {});
-
-        const groupedTopSellingProducts = topSellingProducts.reduce((acc, product) => {
-            const { category_id, category_name } = product;
-            if (!acc[category_id]) {
-                acc[category_id] = {
-                    title: `Top Selling ${category_name}`,
-                    banner_type: `Products`,
-                    vertical_priority: priorityMap[category_id],
-                    products: []
-                };
+            if (!productIds) {
+                return null;  // Skip if productIds is null, undefined, or empty
             }
-            acc[category_id].products.push(product);
-            return acc;
-        }, {});
 
-        // Sort each group by horizontal_priority and transform into desired format
-        const groupedTopSellingProductDetails = Object.values(groupedTopSellingProducts).map(group => {
-            group.products = group.products.map(product => ({
-                product_id: product.product_id,
-                product_name: product.product_name,
-                images: product.images,
-                product_MRP: product.product_MRP,
-                product_selling_price: product.product_selling_price,
-                discount_amount: product.discount_amount,
-                discount_percentage: product.discount_percentage,
-            }));
-            return group;
-        });
+            let parsedProductIds = JSON.parse(productIds);
+            const [products] = await getProductsByProductIds(parsedProductIds);
 
-        let bannerDetails = [...groupedBannerDetails, catchOfTheDay, SummerSavings, topSellers, ...groupedTopSellingProductDetails].sort((a, b) => a.vertical_priority - b.vertical_priority)
+            return {
+                title: title || "",
+                banner_type,
+                vertical_priority,
+                products: products
+            };
+        }));
+
+        // Filter out any null values from the result
+        const filteredProductGroupedBannerDetails = productGroupedBannerDetails.filter(detail => detail !== null);
+
+        let bannerDetails = [...groupedBannerDetails, ...filteredProductGroupedBannerDetails].sort((a, b) => a.vertical_priority - b.vertical_priority)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
