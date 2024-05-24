@@ -3,14 +3,7 @@ const app = express();
 const cors = require('cors');
 const bodyParser = require('body-parser')
 
-const authRoutes = require('./routes/auth')
-const homeRoutes = require('./routes/home');
-const userRoutes = require('./routes/user')
-const productRoutes = require('./routes/products');
-const addressRoutes = require('./routes/address');
-const orderRoutes = require('./routes/order');
-const couponRoutes = require('./routes/coupons');
-const storeRoutes = require('./routes/store');
+const indexRoutes = require('./src/routes/index');
 
 require('dotenv').config();
 
@@ -26,12 +19,6 @@ app.use(bodyParser.json({
     }
 }));
 
-app.use('/home', homeRoutes);
-app.use('/auth', authRoutes);
-app.use('/user', userRoutes);
-app.use('/shop', productRoutes);
-app.use('/orders', addressRoutes);
-app.use('/orders', orderRoutes);
-app.use('/coupons', couponRoutes);
-app.use('/store', storeRoutes);
+app.use(indexRoutes);
+
 app.listen(process.env.PORT);

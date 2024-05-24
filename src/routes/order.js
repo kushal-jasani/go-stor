@@ -2,8 +2,8 @@ const express = require('express');
 const bodyParser = require('body-parser')
 
 const orderController = require('../controller/order');
-const { isAuth } = require('../middleware/is-auth');
-const { isLogIn } = require('../middleware/is-login');
+const { isAuth } = require('../middleware/isAuth');
+const { isLogIn } = require('../middleware/isLogin');
 
 const router = express.Router();
 
