@@ -7,7 +7,7 @@ const {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
-} = require("../src/util/jwt");
+} = require("../util/jwt");
 
 const {
   findUser,
