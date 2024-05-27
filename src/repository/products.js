@@ -664,7 +664,6 @@ const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId, cate
 }
 
 const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId, specification_key, specification_value }) => {
-    let params = [];
     let conditions = [];
     if (categoryIds) {
         conditions.push(`p.category_id IN (${categoryIds})`);
@@ -673,8 +672,7 @@ const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId, specifica
         conditions.push(`p.subcategory_id IN (${subCategoryIds})`);
     }
     if (storeId) {
-        conditions.push(`p.store_id = ?`);
-        params.push(storeId);
+        conditions.push(`p.store_id = ${storeId}`);
     }
     let whereClause = conditions.length > 0 ? conditions.join(' OR ') : '1=1';
 
@@ -755,7 +753,7 @@ const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId, specifica
         FROM
             SpecValues`;
 
-    return await db.query(sql, params);
+    return await db.query(sql);
 };
 
 
