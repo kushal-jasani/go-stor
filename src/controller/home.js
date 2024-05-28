@@ -1,5 +1,6 @@
 const {
     getBanner,
+    getBannerByBannerIds,
     getBannerDetail,
     getBannerDetailByBannerIds,
     getBannerProducts,
@@ -52,10 +53,10 @@ exports.home = async (req, res, next) => {
         const [banners] = await getBanner();
 
         const groupedBanners = banners.reduce((acc, banner) => {
-            const { vertical_priority, title, banner_type } = banner;
+            const { vertical_priority, title, banner_type, is_primary } = banner;
 
             // Only process banners that are not of type "products"
-            if (banner_type !== 'Products') {
+            if (banner_type !== 'Products' && is_primary) {
                 if (!acc[vertical_priority]) {
                     acc[vertical_priority] = { title: title || "", banner_type, vertical_priority, banners: [] };
                 }
@@ -74,7 +75,7 @@ exports.home = async (req, res, next) => {
             return group;
         });
 
-        const productBanners = banners.filter(banner => banner.banner_type === 'Products');
+        const productBanners = banners.filter(banner => banner.banner_type === 'Products' && banner.is_primary === 1);
         // Fetch banner descriptions and products, then build the groupedBannerDetails for product banners
         const bannerIds = productBanners.map(banner => banner.banner_id);
         const [bannerDescriptions] = await getBannerDetailByBannerIds(bannerIds);
@@ -135,84 +136,193 @@ exports.home = async (req, res, next) => {
 exports.getProductsByBannerId = async (req, res, next) => {
     try {
         const bannerId = req.params.bannerId;
-        let { priceFilter, others, sortBy } = req.query;
-        let parsedPriceFilter, parsedOtherFilter;
-        try {
-            parsedPriceFilter = priceFilter ? JSON.parse(priceFilter) : undefined;
-            parsedOtherFilter = others ? JSON.parse(others) : [];
-        } catch (error) {
-            console.error('Error parsing filters: ', error);
+        const [banner] = await getBannerByBannerIds(bannerId)
+        if (!banner.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 404,
+                    msg: 'Invalid BannerId!'
+                })
+            );
         }
 
-        const page = parseInt(req.query.page) || 1;
-        const limit = 10;
-        const offset = (page - 1) * limit;
-
-        let bannerDiscount;
-        const [bannerDetail] = await getBannerDetail(bannerId)
-        let { category_id, subcategory_id, key, value, specification_key, specification_value } = bannerDetail[0];
-
-        if (key === 'discount upto') {
-            bannerDiscount = value
+        const { is_curated, banner_type } = banner[0];
+        if (is_curated === 0 && banner_type === 'Products') {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 404,
+                    msg: 'Invalid BannerId!'
+                })
+            );
         }
-
-        let max = 0, otherFilters1, otherFilters2, otherFilters;
-        if (specification_key === null) {
-            if (category_id !== null) {
-                let [categoryMaxPrice] = await getMaxPrice({ category_id })
-                max = Math.max(max, categoryMaxPrice[0].max_price);
-                [otherFilters1] = await getOtherFilters({ categoryIds: JSON.parse(category_id) });
+        if (is_curated === 1) {
+            const { sub_banner_id } = banner[0];
+            if (!sub_banner_id) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 404,
+                        msg: 'BannerId not contain subBanner'
+                    })
+                );
             }
-            if (subcategory_id !== null) {
-                let [subcategoryMaxPrice] = await getMaxPrice({ subcategory_id })
-                max = Math.max(max, subcategoryMaxPrice[0].max_price);
-                [otherFilters2] = await getOtherFilters({ subCategoryIds: JSON.parse(subcategory_id) });
-            }
+            const parsedSubBannerIds = JSON.parse(sub_banner_id);
 
-            if (otherFilters1 && otherFilters2) {
-                otherFilters = mergeSpecValues(otherFilters1, otherFilters2);
-            } else if (otherFilters1) {
-                otherFilters = otherFilters1
-            } else if (otherFilters2) {
-                otherFilters = otherFilters2
-            }
-        } else if (specification_key !== null && specification_value !== null) {
-            let parsedSpecificationValue = JSON.parse(specification_value);
+            const [banners] = await getBannerByBannerIds(parsedSubBannerIds)
+            const groupedBanners = banners.reduce((acc, banner) => {
+                const { vertical_priority, title, banner_type } = banner;
 
-            if (parsedOtherFilter.hasOwnProperty(specification_key)) {
-                let existingValues = new Set(parsedOtherFilter[specification_key]);
-                for (let value of parsedSpecificationValue) {
-                    existingValues.add(value.toString());
-                }
-                parsedOtherFilter[specification_key] = Array.from(existingValues);
-            } else {
-                parsedOtherFilter[specification_key] = parsedSpecificationValue.map(value => value.toString());
-            }
-
-            let [spKeyMaxPrice] = await getMaxPrice({ category_id, subcategory_id, specification_key, specification_value })
-            max = Math.max(max, spKeyMaxPrice[0].max_price);
-            [otherFilters] = await getOtherFilters({ categoryIds: JSON.parse(category_id), specification_key, specification_value });
-        }
-        const priceFilter1 = { min_price: 0, max_price: max };
-
-        const [products] = await getBannerProducts({ categoryId: category_id, subCategoryId: subcategory_id, bannerDiscount, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit });
-        const [bannerProductsCount] = await getBannerProductCount({ categoryId: category_id, subCategoryId: subcategory_id, bannerDiscount, parsedPriceFilter, parsedOtherFilter, sortBy });
-
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'Banner Products fetched!',
-                data: {
-                    products: products.length ? products : `No products found`,
-                    total_products: bannerProductsCount.length,
-                    filters: {
-                        priceFilter1,
-                        otherFilters
+                // Only process banners that are not of type "products"
+                if (banner_type !== 'Products') {
+                    if (!acc[vertical_priority]) {
+                        acc[vertical_priority] = { title: title || "", banner_type, vertical_priority, banners: [] };
                     }
+                    acc[vertical_priority].banners.push(banner);
                 }
-            })
-        );
+
+                return acc;
+            }, {});
+
+            // Sort each group by horizontal_priority and transform into desired format
+            const groupedBannerDetails = Object.values(groupedBanners).map(group => {
+                group.banners = group.banners.sort((a, b) => a.horizontal_priority - b.horizontal_priority).map(banner => ({
+                    id: banner.banner_id,
+                    image: banner.banner_image
+                }));
+                return group;
+            });
+
+            const productBanners = banners.filter(banner => banner.banner_type === 'Products');
+            // Fetch banner descriptions and products, then build the groupedBannerDetails for product banners
+            const bannerIds = productBanners.map(banner => banner.banner_id);
+            const [bannerDescriptions] = await getBannerDetailByBannerIds(bannerIds);
+            const productIds = bannerDescriptions
+                .map(bannerDescription => bannerDescription.product_id ? JSON.parse(bannerDescription.product_id) : [])
+                .flat();
+
+            let productGroupedBannerDetails;
+            if (productIds.length > 0) {
+                // Fetch all product details in one go
+                const [products] = await getProductsByProductIds(productIds);
+
+                // Create a map for easy lookup of product details by product_id
+                const productsMap = products.reduce((acc, product) => {
+                    acc[product.product_id] = product;
+                    return acc;
+                }, {});
+
+                // Combine the details
+                productGroupedBannerDetails = productBanners.map(banner => {
+                    const { vertical_priority, title, banner_type, banner_id } = banner;
+                    const bannerDescription = bannerDescriptions.find(desc => desc.banner_id === banner_id);
+                    const productIds = bannerDescription.product_id ? JSON.parse(bannerDescription.product_id) : [];
+
+                    return {
+                        title: title || "",
+                        banner_type,
+                        vertical_priority,
+                        products: productIds.map(id => productsMap[id]).filter(product => product)
+                    };
+                }).filter(detail => detail.products.length > 0); // Filter out any entries without products
+            }
+
+            let bannerDetails = [...groupedBannerDetails, ...productGroupedBannerDetails].sort((a, b) => a.vertical_priority - b.vertical_priority)
+
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'Sub Home Page',
+                    data: {
+                        bannerDetails
+                    }
+                })
+            );
+        } else if (is_curated === 0 && banner_type !== 'Products') {
+            let { priceFilter, others, sortBy } = req.query;
+            let parsedPriceFilter, parsedOtherFilter;
+            try {
+                parsedPriceFilter = priceFilter ? JSON.parse(priceFilter) : undefined;
+                parsedOtherFilter = others ? JSON.parse(others) : [];
+            } catch (error) {
+                console.error('Error parsing filters: ', error);
+            }
+
+            const page = parseInt(req.query.page) || 1;
+            const limit = 10;
+            const offset = (page - 1) * limit;
+
+            let bannerDiscount, startingPrice;
+            const [bannerDetail] = await getBannerDetail(bannerId)
+            let { category_id, subcategory_id, key, value, specification_key, specification_value } = bannerDetail[0];
+
+            if (key === 'discount upto') {
+                bannerDiscount = value
+            } else if (key === 'starting at') {
+                startingPrice = value
+            }
+
+            let max = 0, otherFilters1, otherFilters2, otherFilters;
+            if (specification_key === null) {
+                if (category_id !== null) {
+                    let [categoryMaxPrice] = await getMaxPrice({ category_id })
+                    max = Math.max(max, categoryMaxPrice[0].max_price);
+                    [otherFilters1] = await getOtherFilters({ categoryIds: JSON.parse(category_id) });
+                }
+                if (subcategory_id !== null) {
+                    let [subcategoryMaxPrice] = await getMaxPrice({ subcategory_id })
+                    max = Math.max(max, subcategoryMaxPrice[0].max_price);
+                    [otherFilters2] = await getOtherFilters({ subCategoryIds: JSON.parse(subcategory_id) });
+                }
+
+                if (otherFilters1 && otherFilters2) {
+                    otherFilters = mergeSpecValues(otherFilters1, otherFilters2);
+                } else if (otherFilters1) {
+                    otherFilters = otherFilters1
+                } else if (otherFilters2) {
+                    otherFilters = otherFilters2
+                }
+            } else if (specification_key !== null && specification_value !== null) {
+                let parsedSpecificationValue = JSON.parse(specification_value);
+
+                if (parsedOtherFilter.hasOwnProperty(specification_key)) {
+                    let existingValues = new Set(parsedOtherFilter[specification_key]);
+                    for (let value of parsedSpecificationValue) {
+                        existingValues.add(value.toString());
+                    }
+                    parsedOtherFilter[specification_key] = Array.from(existingValues);
+                } else {
+                    parsedOtherFilter[specification_key] = parsedSpecificationValue.map(value => value.toString());
+                }
+
+                let [spKeyMaxPrice] = await getMaxPrice({ category_id, subcategory_id, specification_key, specification_value })
+                max = Math.max(max, spKeyMaxPrice[0].max_price);
+                [otherFilters] = await getOtherFilters({ categoryIds: JSON.parse(category_id), specification_key, specification_value });
+            }
+            const priceFilter1 = { min_price: 0, max_price: max };
+
+            console.log(category_id, subcategory_id, bannerDiscount, startingPrice, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
+            const [products] = await getBannerProducts({ categoryId: category_id, subCategoryId: subcategory_id, bannerDiscount, startingPrice, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit });
+            const [bannerProductsCount] = await getBannerProductCount({ categoryId: category_id, subCategoryId: subcategory_id, bannerDiscount, startingPrice, parsedPriceFilter, parsedOtherFilter, sortBy });
+
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'Banner Products',
+                    data: {
+                        products: products.length ? products : `No products found`,
+                        total_products: bannerProductsCount.length,
+                        filters: {
+                            priceFilter1,
+                            otherFilters
+                        }
+                    }
+                })
+            );
+        }
     } catch (err) {
         console.log(err);
         return sendHttpResponse(req, res, next,

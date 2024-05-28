@@ -7,11 +7,29 @@ const getBanner = async () => {
             b.banner_type,
             b.image AS banner_image,
             b.horizontal_priority,
-            b.vertical_priority
+            b.vertical_priority,
+            b.is_primary
         FROM
             banner b`
 
     return await db.query(sql)
+}
+
+const getBannerByBannerIds = async (bannerIds) => {
+    let sql = `SELECT
+            b.id AS banner_id,
+            b.title,
+            b.banner_type,
+            b.image AS banner_image,
+            b.horizontal_priority,
+            b.vertical_priority,
+            b.is_curated,
+            b.sub_banner_id
+        FROM
+            banner b
+        WHERE b.id IN (?)`
+    let params = [bannerIds]
+    return await db.query(sql, params)
 }
 
 const getBannerDetail = async (bannerId) => {
@@ -28,8 +46,11 @@ const getBannerDetailByBannerIds = async (bannerIds) => {
     return await db.query(sql, params)
 }
 
-const getBannerProducts = async ({ categoryId, subCategoryId, bannerDiscount, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit }) => {
-    const bannerDiscount1 = parseFloat(bannerDiscount.replace('%', ''));
+const getBannerProducts = async ({ categoryId, subCategoryId, bannerDiscount, startingPrice, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit }) => {
+    let bannerDiscount1
+    if (bannerDiscount) {
+        bannerDiscount1 = parseFloat(bannerDiscount.replace('%', ''));
+    }
     const categoryIdList = categoryId ? JSON.parse(categoryId) : [];
     const subCategoryIdList = subCategoryId ? JSON.parse(subCategoryId) : [];
 
@@ -74,6 +95,11 @@ const getBannerProducts = async ({ categoryId, subCategoryId, bannerDiscount, pa
     if (bannerDiscount1) {
         sql += `) AND ((((p.MRP - p.selling_price) / p.MRP) * 100) <= ?)`;
         params.push(bannerDiscount1);
+    } else if (startingPrice) {
+        sql += `) AND (p.selling_price >= ?)`;
+        params.push(startingPrice);
+    } else {
+        sql += `) `
     }
 
     let conditions2 = [];
@@ -136,8 +162,11 @@ const getBannerProducts = async ({ categoryId, subCategoryId, bannerDiscount, pa
     return await db.query(sql, params);
 };
 
-const getBannerProductCount = async ({ categoryId, subCategoryId, bannerDiscount, parsedPriceFilter, parsedOtherFilter }) => {
-    const bannerDiscount1 = parseFloat(bannerDiscount.replace('%', ''));
+const getBannerProductCount = async ({ categoryId, subCategoryId, bannerDiscount, startingPrice, parsedPriceFilter, parsedOtherFilter }) => {
+    let bannerDiscount1
+    if (bannerDiscount) {
+        bannerDiscount1 = parseFloat(bannerDiscount.replace('%', ''));
+    }
     const categoryIdList = categoryId ? JSON.parse(categoryId) : [];
     const subCategoryIdList = subCategoryId ? JSON.parse(subCategoryId) : [];
 
@@ -175,6 +204,11 @@ const getBannerProductCount = async ({ categoryId, subCategoryId, bannerDiscount
     if (bannerDiscount1) {
         sql += `) AND ((((p.MRP - p.selling_price) / p.MRP) * 100) <= ?)`;
         params.push(bannerDiscount1);
+    } else if (startingPrice) {
+        sql += `) AND (p.selling_price >= ?)`;
+        params.push(startingPrice);
+    } else {
+        sql += `) `
     }
 
     let conditions2 = [];
@@ -256,6 +290,7 @@ const getTopProductsByCategoryId = async (categoryIds) => {
 
 module.exports = {
     getBanner,
+    getBannerByBannerIds,
     getBannerDetail,
     getBannerDetailByBannerIds,
     getBannerProducts,
