@@ -4,7 +4,8 @@ const {
     getBannerDetail,
     getBannerDetailByBannerIds,
     getBannerProducts,
-    getBannerProductCount
+    getBannerProductCount,
+    getAboutUsCategory,
 } = require('../repository/home');
 
 const {
@@ -323,6 +324,32 @@ exports.getProductsByBannerId = async (req, res, next) => {
                 })
             );
         }
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
+    }
+}
+
+exports.getAboutUsCategory = async (req, res, next) => {
+    try {
+        const [category] = await getAboutUsCategory();
+
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'About Us',
+                data: {
+                    category
+                }
+            })
+        );
     } catch (err) {
         console.log(err);
         return sendHttpResponse(req, res, next,

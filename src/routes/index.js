@@ -11,7 +11,7 @@ const storeRoutes = require('./store');
 
 const router = express.Router();
 
-router.use('/home', homeRoutes);
+router.use(homeRoutes);
 router.use('/auth', authRoutes);
 router.use('/user', userRoutes);
 router.use('/shop', productRoutes);

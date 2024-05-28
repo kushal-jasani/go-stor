@@ -252,42 +252,53 @@ const getBannerProductCount = async ({ categoryId, subCategoryId, bannerDiscount
     return await db.query(sql, params);
 };
 
-const getTopProductsByCategoryId = async (categoryIds) => {
-    let params = [];
-    let sql = `SELECT DISTINCT
-            oi.product_id AS product_id,
-            p.product_name,
-            p.category_id,
-            c.name AS category_name,
-            (
-                SELECT i.image
-                FROM images i
-                WHERE i.product_id = p.id
-                LIMIT 1
-            ) AS images,
-            p.MRP AS product_MRP,
-            p.selling_price AS product_selling_price,
-            CAST((p.MRP - p.selling_price) AS UNSIGNED) AS discount_amount,
-            CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage,
-            (
-                SELECT COUNT(*)
-                FROM orderItems oi2
-                WHERE oi2.product_id = p.id
-            ) AS total_count
-        FROM
-            orderItems oi
-        JOIN
-            products p ON oi.product_id = p.id
-        JOIN
-            category c ON p.category_id = c.id`
-    if (categoryIds) {
-        sql += ` WHERE p.category_id IN (?)`
-        params.push(categoryIds);
-    }
-    sql += ` ORDER BY total_count DESC`
+// const getTopProductsByCategoryId = async (categoryIds) => {
+//     let params = [];
+//     let sql = `SELECT DISTINCT
+//             oi.product_id AS product_id,
+//             p.product_name,
+//             p.category_id,
+//             c.name AS category_name,
+//             (
+//                 SELECT i.image
+//                 FROM images i
+//                 WHERE i.product_id = p.id
+//                 LIMIT 1
+//             ) AS images,
+//             p.MRP AS product_MRP,
+//             p.selling_price AS product_selling_price,
+//             CAST((p.MRP - p.selling_price) AS UNSIGNED) AS discount_amount,
+//             CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage,
+//             (
+//                 SELECT COUNT(*)
+//                 FROM orderItems oi2
+//                 WHERE oi2.product_id = p.id
+//             ) AS total_count
+//         FROM
+//             orderItems oi
+//         JOIN
+//             products p ON oi.product_id = p.id
+//         JOIN
+//             category c ON p.category_id = c.id`
+//     if (categoryIds) {
+//         sql += ` WHERE p.category_id IN (?)`
+//         params.push(categoryIds);
+//     }
+//     sql += ` ORDER BY total_count DESC`
 
-    return await db.query(sql, params);
-};
+//     return await db.query(sql, params);
+// };
+
+const getAboutUsCategory = async () => {
+    let sql = `SELECT
+            a.category_id,
+            a.name,
+            a.image
+        FROM
+            aboutUsCategory a`
+
+    return await db.query(sql)
+}
 
 module.exports = {
     getBanner,
@@ -296,5 +307,5 @@ module.exports = {
     getBannerDetailByBannerIds,
     getBannerProducts,
     getBannerProductCount,
-    getTopProductsByCategoryId
+    getAboutUsCategory,
 };

@@ -4,8 +4,10 @@ const homeController = require('../controller/home');
 
 const router = express.Router();
 
-router.get('/', homeController.home);
+router.get('/home/', homeController.home);
 
-router.get('/banner/:bannerId', homeController.getProductsByBannerId);
+router.get('/home/banner/:bannerId', homeController.getProductsByBannerId);
+
+router.get('/about-us', homeController.getAboutUsCategory);
 
 module.exports = router;
