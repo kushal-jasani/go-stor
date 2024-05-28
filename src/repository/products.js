@@ -602,6 +602,7 @@ const filterBySearch = async (productId) => {
 const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId, category_id, subcategory_id, specification_key, specification_value }) => {
     const categoryIdList = category_id ? JSON.parse(category_id) : undefined;
     const subcategoryIdList = subcategory_id ? JSON.parse(subcategory_id) : undefined;
+    const specification_valueList = specification_value ? JSON.parse(specification_value) : undefined;
     let params = [];
     let sql = `SELECT
             COALESCE(
@@ -615,7 +616,7 @@ const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId, cate
             products p`
 
     // Join specification table only if specification_key and specification_value are provided
-    if (specification_key && specification_value) {
+    if (specification_key && specification_valueList) {
         sql += ` JOIN specifications sp ON p.id = sp.product_id`;
     }
 
@@ -651,9 +652,9 @@ const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId, cate
         params.push(subcategoryIdList);
     }
 
-    if (specification_key, specification_value) {
-        whereClauses.push('sp.key = ? AND sp.value = ?');
-        params.push(specification_key, specification_value);
+    if (specification_key, specification_valueList) {
+        whereClauses.push('sp.key = ? AND sp.value IN (?)');
+        params.push(specification_key, specification_valueList);
     }
 
     if (whereClauses.length > 0) {
