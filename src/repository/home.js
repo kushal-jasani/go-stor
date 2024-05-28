@@ -8,7 +8,8 @@ const getBanner = async () => {
             b.image AS banner_image,
             b.horizontal_priority,
             b.vertical_priority,
-            b.is_primary
+            b.is_primary,
+            b.is_curated
         FROM
             banner b`
 

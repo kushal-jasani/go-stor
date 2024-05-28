@@ -70,7 +70,8 @@ exports.home = async (req, res, next) => {
         const groupedBannerDetails = Object.values(groupedBanners).map(group => {
             group.banners = group.banners.sort((a, b) => a.horizontal_priority - b.horizontal_priority).map(banner => ({
                 id: banner.banner_id,
-                image: banner.banner_image
+                image: banner.banner_image,
+                is_curated: banner.is_curated
             }));
             return group;
         });
@@ -303,7 +304,6 @@ exports.getProductsByBannerId = async (req, res, next) => {
             }
             const priceFilter1 = { min_price: 0, max_price: max };
 
-            console.log(category_id, subcategory_id, bannerDiscount, startingPrice, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
             const [products] = await getBannerProducts({ categoryId: category_id, subCategoryId: subcategory_id, bannerDiscount, startingPrice, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit });
             const [bannerProductsCount] = await getBannerProductCount({ categoryId: category_id, subCategoryId: subcategory_id, bannerDiscount, startingPrice, parsedPriceFilter, parsedOtherFilter, sortBy });
 
