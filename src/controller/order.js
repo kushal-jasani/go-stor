@@ -79,7 +79,7 @@ exports.getOrders = async (req, res, next) => {
                 data: {
                     currentOrders: currentOrders.length ? currentOrders : `No current orders found`,
                     total_current_orders: currentOrdersCount.length,
-                    pastOrders: pastOrders.length ? pastOrders : `No current orders found`,
+                    pastOrders: pastOrders.length ? pastOrders : `No past orders found`,
                     total_past_orders: pastOrdersCount.length,
                 }
             })
