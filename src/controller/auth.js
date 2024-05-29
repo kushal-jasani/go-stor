@@ -2,6 +2,7 @@ const otpless = require("otpless-node-js-auth-sdk");
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 const clientId = process.env.OTPLESS_CLIENTID;
 const clientSecret = process.env.OTPLESS_CLIETSECRET;
+const crypto = require('crypto');
 
 const {
   generateAccessToken,
@@ -11,7 +12,8 @@ const {
 
 const {
   findUser,
-  insertUser
+  insertUser,
+  insertReferralDetail
 } = require("../repository/auth");
 
 const {
@@ -21,6 +23,11 @@ const {
   refreshAccessTokenSchema,
   resendOtpSchema
 } = require("../validator/authValidationSchema");
+
+const generateReferralCode = (userId, email, phoneno) => {
+  const baseString = `${email}${phoneno}${userId}`;
+  return crypto.createHash('sha256').update(baseString).digest('hex').substr(0, 8);
+};
 
 exports.register = async (req, res, next) => {
   const { error } = sendOtpSchema.validate(req.body);
@@ -109,6 +116,10 @@ exports.verifyRegisterOTP = async (req, res, next) => {
     }
     if (varificationresponse.isOTPVerified === true) {
       const [userResults] = await insertUser(name, email, phoneno, referral);
+      const userId = userResults.insertId
+      const referralCode = generateReferralCode(userId, email, phoneno)
+      await insertReferralDetail(userId, referralCode);
+
       return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 201,
