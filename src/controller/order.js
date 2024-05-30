@@ -8,9 +8,15 @@ const {
     addOrderItemDetail,
     addPaymentDetail,
     getPaymentDetails,
+    countOrdersByUserId,
     updateOrderStatus,
     updatePaymentDetails,
-    getOrderCount
+    getOrderCount,
+    findUserById,
+    findReferralByCode,
+    updateReferralBonus,
+    getReferralAmount,
+    deductReferralAmount
 } = require('../repository/order');
 
 const {
@@ -140,6 +146,11 @@ exports.getOrderSummary = async (req, res, next) => {
             console.error('Error parsing filters: ', error);
         }
 
+        const userId = req.user.userId;
+        const [referralResults] = await getReferralAmount(userId);
+        let remaining_reward = referralResults.length > 0 ? referralResults[0].remaining_reward : 0;
+        remaining_reward = parseFloat(remaining_reward);
+
         let order_sub_total = 0, item_count = 0;
         await Promise.all(
             parsedProducts.map(async (product) => {
@@ -206,6 +217,7 @@ exports.getOrderSummary = async (req, res, next) => {
                     order_sub_total,
                     shipping_charges: deliveryCharge,
                     discount_amount: discountAmount,
+                    referral_bonus: remaining_reward.toFixed(2),
                     order_total
                 }
             })
@@ -224,7 +236,7 @@ exports.getOrderSummary = async (req, res, next) => {
 
 exports.getCheckout = async (req, res, next) => {
     try {
-        const { addressId, couponId, products } = req.body;
+        const { addressId, couponId, products, use_referral_bonus } = req.body;
 
         // validate addressId
         const [userData] = await getUserIdByAddress({ id: addressId })
@@ -312,13 +324,34 @@ exports.getCheckout = async (req, res, next) => {
 
         let order_total = (parseFloat(order_sub_total) + parseFloat(deliveryCharge) - parseFloat(discountAmount)).toFixed(2);
 
+        let remaining_reward;
+        if (use_referral_bonus) {
+            const [referralResults] = await getReferralAmount(userId);
+            remaining_reward = referralResults.length > 0 ? referralResults[0].remaining_reward : 0;
+            remaining_reward = parseFloat(remaining_reward);
+
+            if (remaining_reward > 0) {
+                if (order_total <= remaining_reward) {
+                    remaining_reward = order_total;
+                    order_total = 0;
+                } else {
+                    order_total -= remaining_reward;
+                }
+
+                // Update the referral amount in the database
+                await deductReferralAmount(userId, remaining_reward);
+            } else {
+                remaining_reward = 0;
+            }
+        }
+
         // add orderAddress details in database
         const [addressDetail] = await getAddress({ user_id: req.user.userId, id: addressId })
         const [addOrderAddress] = await insertOrderAddress(addressDetail[0])
         let order_address_id = addOrderAddress.insertId
 
         // add order in database
-        const [order] = await addOrderDetail({ user_id: req.user.userId, coupon_id: couponId, address_id: order_address_id, gross_amount: order_sub_total, discount_amount: discountAmount, delivery_charge: deliveryCharge, order_amount: order_total, status: 'pending' })
+        const [order] = await addOrderDetail({ user_id: req.user.userId, coupon_id: couponId, address_id: order_address_id, gross_amount: order_sub_total, discount_amount: discountAmount, delivery_charge: deliveryCharge, referral_bonus_used: remaining_reward, order_amount: order_total, status: 'pending' })
         if (!order.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -407,6 +440,14 @@ exports.stripeWebhook = async (req, res, next) => {
             return res.status(400).send(`Webhook Error: ${err.message}`);
         }
 
+        sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: { event_received: true }
+            })
+        );
+
         // Handle the event
         switch (event.type) {
             case 'payment_intent.succeeded':
@@ -422,6 +463,23 @@ exports.stripeWebhook = async (req, res, next) => {
                 // Update order table status & the payment details table with the payment status
                 await updateOrderStatus(orderId, 'placed');
                 await updatePaymentDetails(orderId, invoiceNumber, paymentIntentSucceeded.payment_method_types[0], paymentIntentSucceeded.status);
+
+                const userId = paymentDetail[0].user_id;
+                const [orderCountResult] = await countOrdersByUserId(userId);
+                const orderCount = orderCountResult[0].count;
+
+                if (orderCount === 1) {
+                    const [userResult] = await findUserById(userId);
+                    const referralCode = userResult[0].referral_with;
+
+                    if (referralCode) {
+                        const [referralResults] = await findReferralByCode(referralCode);
+                        if (referralResults.length > 0) {
+                            const referrerId = referralResults[0].user_id;
+                            await updateReferralBonus(referrerId, 250);
+                        }
+                    }
+                }
                 break;
 
             case 'payment_intent.canceled':
