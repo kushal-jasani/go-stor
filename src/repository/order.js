@@ -205,7 +205,7 @@ const getReferralAmount = async (userId) => {
 };
 
 const deductReferralAmount = async (userId, usedAmt) => {
-    let sql = `UPDATE referrals SET remaining_reward = remaining_reward - ? WHERE user_id = ?`
+    let sql = `UPDATE referral SET remaining_reward = remaining_reward - ? WHERE user_id = ?`
     let params = [usedAmt, userId]
     return await db.query(sql, params);
 };
