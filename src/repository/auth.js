@@ -5,10 +5,18 @@ const findUser = async (phoneno) => {
 }
 
 const insertUser = async (name, email, phoneno, referral) => {
-    return await db.query('insert into users set ?', { name: name, phoneno: phoneno, email: email, referral: referral })
+    return await db.query('insert into users set ?', { name, phoneno, email, referral_with: referral })
+}
+
+const insertReferralDetail = async (userId, referralCode) => {
+    let sql = `INSERT INTO referral SET ?`
+
+    let params = { user_id: userId, code: referralCode }
+    return await db.query(sql, params)
 }
 
 module.exports = {
     findUser,
-    insertUser
+    insertUser,
+    insertReferralDetail
 }
