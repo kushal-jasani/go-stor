@@ -15,9 +15,14 @@ const productSchema = Joi.object({
     quantity: Joi.number().integer().min(1).max(5).required()
 });
 
-const productsSchema = Joi.array().items(productSchema);
+const orderSchema = Joi.object({
+    addressId: Joi.number().required(),
+    couponId: Joi.number().optional(),
+    products: Joi.array().items(productSchema).min(1).required(),
+    use_referral_bonus: Joi.boolean().required(),
+})
 
 module.exports = {
     addressSchema,
-    productsSchema
+    orderSchema
 }

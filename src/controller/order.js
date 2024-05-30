@@ -34,7 +34,7 @@ const {
 } = require('../repository/address');
 
 const {
-    productsSchema
+    orderSchema
 } = require("../validator/orderValidationSchema");
 
 const uuid = require('uuid');
@@ -146,6 +146,16 @@ exports.getOrderSummary = async (req, res, next) => {
             console.error('Error parsing filters: ', error);
         }
 
+        if (!parsedProducts || !parsedProducts.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: `For order summary one product required in cart.`
+                })
+            );
+        }
+
         const userId = req.user.userId;
         const [referralResults] = await getReferralAmount(userId);
         let remaining_reward = referralResults.length > 0 ? referralResults[0].remaining_reward : 0;
@@ -236,8 +246,18 @@ exports.getOrderSummary = async (req, res, next) => {
 
 exports.getCheckout = async (req, res, next) => {
     try {
-        const { addressId, couponId, products, use_referral_bonus } = req.body;
+        const { error } = orderSchema.validate(req.body);
+        if (error) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: error.details[0].message
+                })
+            );
+        }
 
+        const { addressId, couponId, products, use_referral_bonus } = req.body;
         // validate addressId
         const [userData] = await getUserIdByAddress({ id: addressId })
         if (!userData.length || userData[0].user_id !== req.user.userId) {
@@ -246,26 +266,6 @@ exports.getCheckout = async (req, res, next) => {
                     status: "error",
                     statusCode: 400,
                     msg: `Invalid addressId for current user.`
-                })
-            );
-        }
-
-        if (!products || !products.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: `For checkout one product required in cart.`
-                })
-            );
-        }
-        const { error } = productsSchema.validate(products);
-        if (error) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: error.details[0].message
                 })
             );
         }
@@ -326,6 +326,7 @@ exports.getCheckout = async (req, res, next) => {
 
         let remaining_reward;
         if (use_referral_bonus) {
+            let userId = req.user.userId
             const [referralResults] = await getReferralAmount(userId);
             remaining_reward = referralResults.length > 0 ? referralResults[0].remaining_reward : 0;
             remaining_reward = parseFloat(remaining_reward);
