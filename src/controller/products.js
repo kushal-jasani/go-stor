@@ -176,7 +176,7 @@ exports.getProductByProductId = async (req, res, next) => {
         const productId = req.params.productId;
         const [product] = await getProductByProductId(productId)
 
-        let ApplicableCoupons, brandProducts;
+        let ApplicableCoupons, brandProducts, brandProductsDetail;
         if (product.length) {
             const coupon_id = await getApplicableCouponId(productId);
             [ApplicableCoupons] = await getApplicableCouponsById(coupon_id)
@@ -191,9 +191,9 @@ exports.getProductByProductId = async (req, res, next) => {
             }
             if (brand) {
                 [brandProducts] = await getProductsByBrand(brand, productId);
+                brandProductsDetail = brandProducts.filter(product => product.product_id !== parseInt(productId));
             }
         }
-        let brandProductsDetail = brandProducts.filter(product => product.product_id !== parseInt(productId));
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
