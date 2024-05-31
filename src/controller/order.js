@@ -156,10 +156,13 @@ exports.getOrderSummary = async (req, res, next) => {
             );
         }
 
-        const userId = req.user.userId;
-        const [referralResults] = await getReferralAmount(userId);
-        let remaining_reward = referralResults.length > 0 ? referralResults[0].remaining_reward : 0;
-        remaining_reward = parseFloat(remaining_reward);
+        let remaining_reward;
+        if (req.user) {
+            const userId = req.user.userId;
+            const [referralResults] = await getReferralAmount(userId);
+            remaining_reward = referralResults.length > 0 ? referralResults[0].remaining_reward : 0;
+            remaining_reward = parseFloat(remaining_reward);
+        }
 
         let order_sub_total = 0, item_count = 0;
         await Promise.all(
@@ -217,17 +220,20 @@ exports.getOrderSummary = async (req, res, next) => {
 
         let order_total = (parseFloat(order_sub_total) + (deliveryCharge === 'FREE' ? 0 : parseFloat(deliveryCharge)) - parseFloat(discountAmount)).toFixed(2);
 
-        const [orderCountResult] = await countOrdersByUserId(userId);
-        const orderCount = orderCountResult[0].count;
         let is_first = 0;
-        if (orderCount === 0) {
-            const [userResult] = await findUserById(userId);
-            const referralCode = userResult[0].referral_with;
-            if (referralCode) {
-                const [referralResults] = await findReferralByCode(referralCode);
-                if (referralResults.length > 0 && order_total >= 5000) {
-                    is_first = 1;
-                    order_total -= (order_sub_total * 0.06);
+        if (req.user) {
+            const userId = req.user.userId;
+            const [orderCountResult] = await countOrdersByUserId(userId);
+            const orderCount = orderCountResult[0].count;
+            if (orderCount === 0) {
+                const [userResult] = await findUserById(userId);
+                const referralCode = userResult[0].referral_with;
+                if (referralCode) {
+                    const [referralResults] = await findReferralByCode(referralCode);
+                    if (referralResults.length > 0 && order_total >= 5000) {
+                        is_first = 1;
+                        order_total -= (order_sub_total * 0.06);
+                    }
                 }
             }
         }
@@ -242,7 +248,7 @@ exports.getOrderSummary = async (req, res, next) => {
                     order_sub_total,
                     shipping_charges: deliveryCharge,
                     discount_amount: discountAmount,
-                    referral_bonus: remaining_reward.toFixed(2),
+                    referral_bonus: remaining_reward ? remaining_reward.toFixed(2) : undefined,
                     referral_discount: is_first ? (order_total * 0.06).toFixed(2) : undefined,
                     order_total
                 }
