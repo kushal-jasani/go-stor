@@ -20,6 +20,11 @@ const getCoupons = async (productId, categoryId) => {
     return await db.query(sql, params)
 }
 
+const getAllCoupons = async () => {
+    let sql = `SELECT c.id, c.code, c.description FROM coupons c`
+    return await db.query(sql)
+}
+
 const getApplicableCouponsById = async (couponId) => {
     let sql = `SELECT id, code, description FROM coupons WHERE id IN (?)`
 
@@ -50,6 +55,7 @@ const getCouponByCode = async (code) => {
 
 module.exports = {
     getCoupons,
+    getAllCoupons,
     getApplicableCouponsById,
     getNotApplicableCouponsById,
     getCouponByCouponId,
