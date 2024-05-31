@@ -331,6 +331,28 @@ const getProductsByProductIds = async (productIds) => {
     return await db.query(sql, params);
 }
 
+const getProductsByBrand = async (brand) => {
+    let sql = `SELECT DISTINCT
+            p.id AS product_id,
+            p.product_name,
+            (
+                SELECT i.image
+                FROM images i
+                WHERE i.product_id = p.id
+                LIMIT 1
+            ) AS images,
+            p.MRP AS product_MRP,
+            p.selling_price AS product_selling_price,
+            CAST((p.MRP - p.selling_price) AS UNSIGNED) AS discount_amount,
+            CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage
+        FROM products p
+        JOIN specifications sp ON sp.product_id = p.id
+        WHERE sp.key = 'brand' AND sp.value = ?`
+
+    let params = [brand]
+    return await db.query(sql, params);
+}
+
 const searchProductList = async (searchText, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit) => {
     let params = [];
     let sql = `SELECT DISTINCT
@@ -890,6 +912,7 @@ module.exports = {
     getProductCountBySubCategoryId,
     getProductByProductId,
     getProductsByProductIds,
+    getProductsByBrand,
     searchProductList,
     searchProductCount,
     categoryFilter,
