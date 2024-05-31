@@ -121,7 +121,7 @@ exports.verifyRegisterOTP = async (req, res, next) => {
       const refreshToken = generateRefreshToken(userId);
       const referralCode = generateReferralCode(userId, email, phoneno)
       await insertReferralDetail(userId, referralCode);
-      
+
       return sendHttpResponse(req, res, next,
         generateResponse({
           statusCode: 201,
