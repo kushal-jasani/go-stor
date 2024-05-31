@@ -176,12 +176,12 @@ exports.getProductByProductId = async (req, res, next) => {
         const productId = req.params.productId;
         const [product] = await getProductByProductId(productId)
 
-        let ApplicableCoupons, brandProducts, brandProductsDetail;
+        let ApplicableCoupons, brandProductsDetails;
         if (product.length) {
             const coupon_id = await getApplicableCouponId(productId);
             [ApplicableCoupons] = await getApplicableCouponsById(coupon_id)
 
-            let item = product[0], brand;
+            let item = product[0], brand, products, brandProducts;
             if (item.specifications) {
                 for (let spec of item.specifications) {
                     if (spec.key === 'brand') {
@@ -190,8 +190,13 @@ exports.getProductByProductId = async (req, res, next) => {
                 }
             }
             if (brand) {
-                [brandProducts] = await getProductsByBrand(brand, productId);
-                brandProductsDetail = brandProducts.filter(product => product.product_id !== parseInt(productId));
+                [products] = await getProductsByBrand(brand, productId);
+                brandProducts = products.filter(product => product.product_id !== parseInt(productId));
+
+                brandProductsDetails = {
+                    name: `More from ${brand}`,
+                    products: brandProducts
+                }
             }
         }
         return sendHttpResponse(req, res, next,
@@ -202,7 +207,7 @@ exports.getProductByProductId = async (req, res, next) => {
                 data: {
                     product: product.length ? product : `No products found`,
                     ApplicableCoupons,
-                    brandProductsDetail
+                    brandProductsDetails
                 }
             })
         );
