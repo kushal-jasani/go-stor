@@ -179,7 +179,9 @@ exports.getProductByProductId = async (req, res, next) => {
         let ApplicableCoupons, brandProductsDetails;
         if (product.length) {
             const coupon_id = await getApplicableCouponId(productId);
-            [ApplicableCoupons] = await getApplicableCouponsById(coupon_id)
+            if (coupon_id.length) {
+                [ApplicableCoupons] = await getApplicableCouponsById(coupon_id)
+            }
 
             let item = product[0], brand, products, brandProducts;
             if (item.specifications) {
