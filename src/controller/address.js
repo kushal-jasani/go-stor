@@ -85,7 +85,9 @@ exports.addAddress = async (req, res, next) => {
     const { name, mobileNumber, email, address, pinCode, city, state } = req.body;
     try {
         const [oldPrimaryAddress] = await getAddress({ user_id: req.user.userId, is_primary: 1 })
-        await updateAddress({ is_primary: 0, addressId: oldPrimaryAddress[0].id })
+        if (oldPrimaryAddress.length) {
+            await updateAddress({ is_primary: 0, addressId: oldPrimaryAddress[0].id })
+        }
 
         const [newPrimaryAddress] = await insertAddress({ user_id: req.user.userId, name, mobileNumber, email, address, pinCode, city, state, is_primary: 1 })
         if (!newPrimaryAddress.affectedRows) {
