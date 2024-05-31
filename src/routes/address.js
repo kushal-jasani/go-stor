@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get('/address', isAuth, addressController.address);
 
-router.get('/address/:addressId', isAuth, addressController.addressByAddressId);
+router.get('/change-primary-address/:addressId', isAuth, addressController.changePrimaryAddress);
 
 router.post('/add-address', isAuth, addressController.addAddress);
 

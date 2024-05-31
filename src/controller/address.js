@@ -1,5 +1,6 @@
 const {
     insertAddress,
+    updateAddress,
     getAddress,
     deleteAddress
 } = require('../repository/address');
@@ -33,16 +34,29 @@ exports.address = async (req, res, next) => {
     }
 }
 
-exports.addressByAddressId = async (req, res, next) => {
+exports.changePrimaryAddress = async (req, res, next) => {
     try {
         const { addressId } = req.params;
-        const [address] = await getAddress({ user_id: req.user.userId, id: addressId })
+        const [allAddress] = await getAddress({ user_id: req.user.userId })
+        const allAddressIds = allAddress.map(address => address.id)
+        if (!allAddressIds.includes(parseInt(addressId))) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 404,
+                    msg: 'Invalid addressId',
+                })
+            );
+        }
+
+        const [oldPrimaryAddress] = await getAddress({ user_id: req.user.userId, is_primary: 1 })
+        await updateAddress({ is_primary: 0, addressId: oldPrimaryAddress[0].id })
+        await updateAddress({ is_primary: 1, addressId })
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
-                msg: 'Address fetched!',
-                data: address
+                msg: 'Primary Address changed!',
             })
         );
     } catch (err) {
@@ -70,8 +84,11 @@ exports.addAddress = async (req, res, next) => {
     }
     const { name, mobileNumber, email, address, pinCode, city, state } = req.body;
     try {
-        const [updated] = await insertAddress({ user_id: req.user.userId, name, mobileNumber, email, address, pinCode, city, state })
-        if (!updated.affectedRows) {
+        const [oldPrimaryAddress] = await getAddress({ user_id: req.user.userId, is_primary: 1 })
+        await updateAddress({ is_primary: 0, addressId: oldPrimaryAddress[0].id })
+
+        const [newPrimaryAddress] = await insertAddress({ user_id: req.user.userId, name, mobileNumber, email, address, pinCode, city, state, is_primary: 1 })
+        if (!newPrimaryAddress.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",
@@ -86,7 +103,7 @@ exports.addAddress = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Adding address successful.',
                 data: {
-                    addressId: updated.insertId
+                    addressId: newPrimaryAddress.insertId
                 }
             })
         );

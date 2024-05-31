@@ -5,6 +5,8 @@ const {
     getProductsBySubCategoryId,
     getProductCountBySubCategoryId,
     getProductByProductId,
+    getProductsByBrand,
+    getCategoryIdByProductId,
     searchProductList,
     searchProductCount,
     categoryFilter,
@@ -15,6 +17,28 @@ const {
     getCategoryName,
     getSubCategoryName
 } = require('../repository/products');
+
+const {
+    getCoupons,
+    getApplicableCouponsById
+} = require('../repository/coupons');
+
+const getApplicableCouponId = async (productId) => {
+    const [categoryIdObject] = await getCategoryIdByProductId(productId)
+    const categoryId = categoryIdObject[0].category_id;
+
+    let couponIds = [];
+    const [couponIdByCategoryId] = await getCoupons(undefined, categoryId)
+    couponIds.push(couponIdByCategoryId)
+
+    const [couponIdByProductId] = await getCoupons(productId, undefined)
+    couponIds.push(couponIdByProductId)
+
+    const flattenedCouponIds = couponIds.flat();
+    const couponIdValues = flattenedCouponIds.map(obj => obj.id);
+    const coupon_id = [...new Set(couponIdValues)];
+    return coupon_id
+}
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
@@ -151,22 +175,40 @@ exports.getProductByProductId = async (req, res, next) => {
     try {
         const productId = req.params.productId;
         const [product] = await getProductByProductId(productId)
-        if (!product.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Products found.',
-                })
-            );
-        }
 
+        let ApplicableCoupons, brandProductsDetails;
+        if (product.length) {
+            const coupon_id = await getApplicableCouponId(productId);
+            [ApplicableCoupons] = await getApplicableCouponsById(coupon_id)
+
+            let item = product[0], brand, products, brandProducts;
+            if (item.specifications) {
+                for (let spec of item.specifications) {
+                    if (spec.key === 'brand') {
+                        brand = spec.value
+                    }
+                }
+            }
+            if (brand) {
+                [products] = await getProductsByBrand(brand, productId);
+                brandProducts = products.filter(product => product.product_id !== parseInt(productId));
+
+                brandProductsDetails = {
+                    name: `More from ${brand}`,
+                    products: brandProducts
+                }
+            }
+        }
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: product
+                data: {
+                    product: product.length ? product : `No products found`,
+                    ApplicableCoupons,
+                    brandProductsDetails
+                }
             })
         );
     } catch (err) {
