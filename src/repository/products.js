@@ -280,6 +280,7 @@ const getProductCountBySubCategoryId = async (subCategoryId, parsedPriceFilter, 
 const getProductByProductId = async (productId) => {
     let sql = `SELECT
             p.id AS product_id,
+            c.name AS category_name,
             p.product_name AS product_name,
             p.MRP AS product_MRP,
             p.selling_price AS product_selling_price,
@@ -303,6 +304,7 @@ const getProductByProductId = async (productId) => {
             ) AS specifications,
             p.warranty AS Warranty_summary
         FROM products p
+        JOIN category c On c.id = p.category_id
         JOIN store s ON p.store_id = s.id
         WHERE p.id = ?`
 
