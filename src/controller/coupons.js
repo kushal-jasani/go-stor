@@ -1,5 +1,6 @@
 const {
     getCoupons,
+    getAllCoupons,
     getApplicableCouponsById,
     getNotApplicableCouponsById,
     getCouponByCouponId,
@@ -83,15 +84,20 @@ exports.getCoupons = async (req, res, next) => {
         }
 
         const coupon_id = await getApplicableCouponId(parsedProductId)
-        const [ApplicableCoupons] = await getApplicableCouponsById(coupon_id)
-        const [NotApplicableCoupons] = await getNotApplicableCouponsById(coupon_id)
+        let ApplicableCoupons, NotApplicableCoupons
+        if (coupon_id.length) {
+            [ApplicableCoupons] = await getApplicableCouponsById(coupon_id);
+            [NotApplicableCoupons] = await getNotApplicableCouponsById(coupon_id);
+        } else {
+            [NotApplicableCoupons] = await getAllCoupons();
+        }
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Coupons fetched!',
                 data: {
-                    ApplicableCoupons,
+                    ApplicableCoupons: ApplicableCoupons ? ApplicableCoupons : [],
                     NotApplicableCoupons
                 }
             })
