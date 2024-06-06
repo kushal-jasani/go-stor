@@ -505,6 +505,15 @@ const searchProductCount = async (searchText, parsedPriceFilter, parsedOtherFilt
     return await db.query(sql, params);
 }
 
+const getSearchSuggestions = async (searchText) => {
+    let params = [];
+    let sql = `SELECT DISTINCT product_name FROM products WHERE product_name LIKE ?`
+    const searchParam = `%${searchText}%`;
+    params.push(searchParam)
+
+    return await db.query(sql, params);
+}
+
 const categoryFilter = async (productId) => {
     let sql = `SELECT DISTINCT
             CASE 
@@ -629,6 +638,7 @@ module.exports = {
     getProductsByBrand,
     searchProductList,
     searchProductCount,
+    getSearchSuggestions,
     categoryFilter,
     getMaxPrice,
     getOtherFilters,
