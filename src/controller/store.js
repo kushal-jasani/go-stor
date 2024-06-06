@@ -63,7 +63,12 @@ exports.getProductsByStoreId = async (req, res, next) => {
 
         const [maxPrice] = await getMaxPrice({ storeId });
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
-        const [otherFilters] = await getOtherFilters({ storeId });
+        const [filters] = await getOtherFilters({ storeId });
+        filters.map(filter => {
+            filter.value_list = JSON.parse(filter.value_list)
+        })
+        const brandFilter = filters.filter(filter => filter.filter_name === "Brand");
+        const otherFilters = filters.filter(filter => filter.filter_name !== "Brand");
 
         const [storeData] = await getStoreDetailByStoreId(storeId)
         const [products] = await getProductsByStoreId(storeId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
@@ -79,7 +84,8 @@ exports.getProductsByStoreId = async (req, res, next) => {
                     products: products.length ? products : `No products found`,
                     total_products: productsCount.length,
                     filters: {
-                        priceFilter1,
+                        priceFilter: priceFilter1,
+                        brandFilter: brandFilter[0],
                         otherFilters
                     }
                 }
