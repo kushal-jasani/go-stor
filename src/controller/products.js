@@ -86,7 +86,12 @@ exports.getProductsByCategoryId = async (req, res, next) => {
         const [categoryName] = await getCategoryName(categoryId);
         const [maxPrice] = await getMaxPrice({ categoryId });
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
-        const [otherFilters] = await getOtherFilters({ categoryIds: [categoryId] });
+        const [filters] = await getOtherFilters({ categoryIds: [categoryId] });
+        filters.map(filter => {
+            filter.value_list = JSON.parse(filter.value_list)
+        })
+        const brandFilter = filters.filter(filter => filter.filter_name === "Brand");
+        const otherFilters = filters.filter(filter => filter.filter_name !== "Brand");
 
         const [products] = await getProductsByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
         const [productsCount] = await getProductCountByCategoryId(categoryId, parsedPriceFilter, parsedOtherFilter)
@@ -101,7 +106,8 @@ exports.getProductsByCategoryId = async (req, res, next) => {
                     products: products.length ? products : `No products found`,
                     total_products: productsCount.length,
                     filters: {
-                        priceFilter1,
+                        priceFilter: priceFilter1,
+                        brandFilter: brandFilter[0],
                         otherFilters
                     }
                 }
@@ -138,7 +144,12 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
         const [subCategoryName] = await getSubCategoryName(subCategoryId);
         const [maxPrice] = await getMaxPrice({ subCategoryId });
         const priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
-        const [otherFilters] = await getOtherFilters({ subCategoryIds: [subCategoryId] });
+        const [filters] = await getOtherFilters({ subCategoryIds: [subCategoryId] });
+        filters.map(filter => {
+            filter.value_list = JSON.parse(filter.value_list)
+        })
+        const brandFilter = filters.filter(filter => filter.filter_name === "Brand");
+        const otherFilters = filters.filter(filter => filter.filter_name !== "Brand");
 
         const [products] = await getProductsBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit)
         const [productsCount] = await getProductCountBySubCategoryId(subCategoryId, parsedPriceFilter, parsedOtherFilter)
@@ -153,7 +164,8 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
                     products: products.length ? products : `No products found`,
                     total_products: productsCount.length,
                     filters: {
-                        priceFilter1,
+                        priceFilter: priceFilter1,
+                        brandFilter: brandFilter[0],
                         otherFilters
                     }
                 }
@@ -283,41 +295,5 @@ exports.search = async (req, res, next) => {
                 msg: 'internal server error'
             })
         )
-    }
-}
-
-exports.filter = async (req, res, next) => {
-    let { searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter } = req.body;
-    try {
-        if (!priceOrderFilter) {
-            priceOrderFilter = "ASC";
-        }
-        const [products] = await filter({ userId: req.userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter });
-        if (!products || !products.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'No Product found for given category and price filter',
-                })
-            );
-        }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'Products fetched!',
-                data: products
-            })
-        );
-    } catch (err) {
-        console.log(err);
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 500,
-                msg: "Internal server error",
-            })
-        );
     }
 }
