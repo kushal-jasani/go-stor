@@ -47,17 +47,7 @@ const getBannerDetailByBannerIds = async (bannerIds) => {
     return await db.query(sql, params)
 }
 
-const getBannerProducts = async ({ categoryId, subCategoryId, bannerDiscount, startingPrice, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit }) => {
-    let bannerDiscount1
-    if (bannerDiscount) {
-        bannerDiscount1 = parseFloat(bannerDiscount.replace('%', ''));
-    }
-    const categoryIdList = categoryId ? JSON.parse(categoryId) : [];
-    const subCategoryIdList = subCategoryId ? JSON.parse(subCategoryId) : [];
-
-    let params = [];
-    let conditions = [];
-
+const getBannerProductsByProductIds = async ({ productId, parsedPriceFilter, parsedOtherFilter, sortBy, offset, limit }) => {
     let sql = `SELECT DISTINCT
             p.id AS product_id,
             p.product_name,
@@ -73,51 +63,25 @@ const getBannerProducts = async ({ categoryId, subCategoryId, bannerDiscount, st
             CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage
         FROM
             products p
-        LEFT JOIN specifications sp ON p.id = sp.product_id`
+        LEFT JOIN specifications sp ON p.id = sp.product_id
+        WHERE p.id IN (?)`;
 
-    // Add WHERE clause
-    sql += ` WHERE (`;
-    if (categoryIdList.length > 0) {
-        conditions.push(`p.category_id IN (?)`);
-        params.push(categoryIdList);
-    }
-
-    if (subCategoryIdList.length > 0) {
-        conditions.push(`p.subcategory_id IN (?)`);
-        params.push(subCategoryIdList);
-    }
-
-    if (conditions.length > 0) {
-        sql += conditions.join(' OR ');
-    } else {
-        sql += '1 = 1'; // Default condition to avoid SQL syntax error
-    }
-
-    if (bannerDiscount1) {
-        sql += `) AND ((((p.MRP - p.selling_price) / p.MRP) * 100) <= ?)`;
-        params.push(bannerDiscount1);
-    } else if (startingPrice) {
-        sql += `) AND (p.selling_price >= ?)`;
-        params.push(startingPrice);
-    } else {
-        sql += `) `
-    }
-
-    let conditions2 = [];
+    let params = [productId];
+    let conditions = [];
     let conditionCount = 0;
 
     // Check if other filters are provided
     if (parsedOtherFilter) {
         Object.entries(parsedOtherFilter).forEach(([key, values]) => {
             if (Array.isArray(values) && values.length > 0) {
-                conditions2.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
+                conditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
                 params.push(key, ...values);
                 conditionCount++;
             }
         });
 
-        if (conditions2.length > 0) {
-            sql += ` AND (${conditions2.join(' OR ')})`;
+        if (conditions.length > 0) {
+            sql += ` AND (${conditions.join(' OR ')})`;
         }
     }
 
@@ -129,10 +93,10 @@ const getBannerProducts = async ({ categoryId, subCategoryId, bannerDiscount, st
 
     // Group by all non-aggregated columns
     sql += ` GROUP BY
-                p.id,
-                p.product_name,
-                p.MRP,
-                p.selling_price`;
+                    p.id,
+                    p.product_name,
+                    p.MRP,
+                    p.selling_price`;
 
     // Add having clause if there are filter conditions
     if (conditionCount > 0) {
@@ -152,28 +116,16 @@ const getBannerProducts = async ({ categoryId, subCategoryId, bannerDiscount, st
             sql += ` ORDER BY p.selling_price ASC`;
             break;
         default:
-            sql += ` ORDER BY (((p.MRP - p.selling_price) / p.MRP) * 100) DESC`;
         // No sorting specified or invalid sorting type, leave it unsorted
     }
 
     // Add LIMIT and OFFSET
-    sql += ` LIMIT ?, ?`
+    sql += ` LIMIT ?, ?`;
     params.push(offset, limit);
-
     return await db.query(sql, params);
 };
 
-const getBannerProductCount = async ({ categoryId, subCategoryId, bannerDiscount, startingPrice, parsedPriceFilter, parsedOtherFilter }) => {
-    let bannerDiscount1
-    if (bannerDiscount) {
-        bannerDiscount1 = parseFloat(bannerDiscount.replace('%', ''));
-    }
-    const categoryIdList = categoryId ? JSON.parse(categoryId) : [];
-    const subCategoryIdList = subCategoryId ? JSON.parse(subCategoryId) : [];
-
-    let params = [];
-    let conditions = [];
-
+const getBannerProductsCountByProductIds = async ({ productId, parsedPriceFilter, parsedOtherFilter }) => {
     let sql = `SELECT DISTINCT
             p.id AS product_id,
             p.MRP AS product_MRP,
@@ -182,51 +134,25 @@ const getBannerProductCount = async ({ categoryId, subCategoryId, bannerDiscount
             CONCAT(FORMAT(((p.MRP - p.selling_price) / p.MRP) * 100, 0), '%') AS discount_percentage
         FROM
             products p
-        LEFT JOIN specifications sp ON p.id = sp.product_id`
+        LEFT JOIN specifications sp ON p.id = sp.product_id
+        WHERE p.id IN (?)`;
 
-    // Add WHERE clause
-    sql += ` WHERE (`;
-    if (categoryIdList.length > 0) {
-        conditions.push(`p.category_id IN (?)`);
-        params.push(categoryIdList);
-    }
-
-    if (subCategoryIdList.length > 0) {
-        conditions.push(`p.subcategory_id IN (?)`);
-        params.push(subCategoryIdList);
-    }
-
-    if (conditions.length > 0) {
-        sql += conditions.join(' OR ');
-    } else {
-        sql += '1 = 1'; // Default condition to avoid SQL syntax error
-    }
-
-    if (bannerDiscount1) {
-        sql += `) AND ((((p.MRP - p.selling_price) / p.MRP) * 100) <= ?)`;
-        params.push(bannerDiscount1);
-    } else if (startingPrice) {
-        sql += `) AND (p.selling_price >= ?)`;
-        params.push(startingPrice);
-    } else {
-        sql += `) `
-    }
-
-    let conditions2 = [];
+    let params = [productId];
+    let conditions = [];
     let conditionCount = 0;
 
     // Check if other filters are provided
     if (parsedOtherFilter) {
         Object.entries(parsedOtherFilter).forEach(([key, values]) => {
             if (Array.isArray(values) && values.length > 0) {
-                conditions2.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
+                conditions.push(`(sp.key = ? AND sp.value IN (${values.map(() => '?').join(', ')}))`);
                 params.push(key, ...values);
                 conditionCount++;
             }
         });
 
-        if (conditions2.length > 0) {
-            sql += ` AND (${conditions2.join(' OR ')})`;
+        if (conditions.length > 0) {
+            sql += ` AND (${conditions.join(' OR ')})`;
         }
     }
 
@@ -238,10 +164,10 @@ const getBannerProductCount = async ({ categoryId, subCategoryId, bannerDiscount
 
     // Group by all non-aggregated columns
     sql += ` GROUP BY
-                p.id,
-                p.product_name,
-                p.MRP,
-                p.selling_price`;
+                        p.id,
+                        p.product_name,
+                        p.MRP,
+                        p.selling_price`;
 
     // Add having clause if there are filter conditions
     if (conditionCount > 0) {
@@ -317,8 +243,8 @@ module.exports = {
     getBannerByBannerIds,
     getBannerDetail,
     getBannerDetailByBannerIds,
-    getBannerProducts,
-    getBannerProductCount,
+    getBannerProductsByProductIds,
+    getBannerProductsCountByProductIds,
     getAboutUsCategory,
     getReferralDetails,
     getTotalInvite

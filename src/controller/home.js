@@ -3,8 +3,8 @@ const {
     getBannerByBannerIds,
     getBannerDetail,
     getBannerDetailByBannerIds,
-    getBannerProducts,
-    getBannerProductCount,
+    getBannerProductsByProductIds,
+    getBannerProductsCountByProductIds,
     getAboutUsCategory,
     getReferralDetails,
     getTotalInvite
@@ -17,39 +17,6 @@ const {
 } = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
-
-const mergeSpecValues = (array1, array2) => {
-    // Create a map to store combined results
-    const map = {};
-
-    // Populate the map with entries from array1
-    array1.forEach(item => {
-        map[item.spec_key] = {
-            spec_key: item.spec_key,
-            spec_values: new Set(item.spec_values)
-        };
-    });
-
-    // Merge entries from array2 into the map
-    array2.forEach(item => {
-        if (map[item.spec_key]) {
-            // If the spec_key exists, merge the spec_values
-            item.spec_values.forEach(value => map[item.spec_key].spec_values.add(value));
-        } else {
-            // If the spec_key does not exist, add the new entry
-            map[item.spec_key] = {
-                spec_key: item.spec_key,
-                spec_values: new Set(item.spec_values)
-            };
-        }
-    });
-
-    // Convert the map back to an array, converting sets to arrays
-    return Object.values(map).map(item => ({
-        spec_key: item.spec_key,
-        spec_values: Array.from(item.spec_values)
-    }));
-}
 
 exports.home = async (req, res, next) => {
     try {
@@ -267,7 +234,7 @@ exports.getProductsByBannerId = async (req, res, next) => {
                 const [maxPrice] = await getMaxPrice({ productId: parsedProductIds });
                 priceFilter1 = { min_price: 0, max_price: maxPrice[0].max_price };
 
-                [filters] = await filterBySearch({ productId: parsedProductIds });
+                [filters] = await getOtherFilters({ productId: parsedProductIds });
                 filters.map(filter => {
                     filter.value_list = JSON.parse(filter.value_list)
                 })
