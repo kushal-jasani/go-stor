@@ -197,7 +197,7 @@ exports.getProductByProductId = async (req, res, next) => {
             let item = product[0], brand, products, brandProducts;
             if (item.specifications) {
                 for (let spec of item.specifications) {
-                    if (spec.key === 'brand') {
+                    if (spec.key === 'Brand') {
                         brand = spec.value
                     }
                 }
@@ -206,9 +206,11 @@ exports.getProductByProductId = async (req, res, next) => {
                 [products] = await getProductsByBrand(brand, productId);
                 brandProducts = products.filter(product => product.product_id !== parseInt(productId));
 
-                brandProductsDetails = {
-                    name: `More from ${brand}`,
-                    products: brandProducts
+                if (brandProducts.length) {
+                    brandProductsDetails = {
+                        name: `More from ${brand}`,
+                        products: brandProducts
+                    }
                 }
             }
         }
