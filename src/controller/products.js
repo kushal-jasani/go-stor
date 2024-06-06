@@ -9,6 +9,7 @@ const {
     getCategoryIdByProductId,
     searchProductList,
     searchProductCount,
+    getSearchSuggestions,
     categoryFilter,
     getMaxPrice,
     getOtherFilters,
@@ -196,7 +197,7 @@ exports.getProductByProductId = async (req, res, next) => {
             let item = product[0], brand, products, brandProducts;
             if (item.specifications) {
                 for (let spec of item.specifications) {
-                    if (spec.key === 'brand') {
+                    if (spec.key === 'Brand') {
                         brand = spec.value
                     }
                 }
@@ -205,9 +206,11 @@ exports.getProductByProductId = async (req, res, next) => {
                 [products] = await getProductsByBrand(brand, productId);
                 brandProducts = products.filter(product => product.product_id !== parseInt(productId));
 
-                brandProductsDetails = {
-                    name: `More from ${brand}`,
-                    products: brandProducts
+                if (brandProducts.length) {
+                    brandProductsDetails = {
+                        name: `More from ${brand}`,
+                        products: brandProducts
+                    }
                 }
             }
         }
@@ -287,6 +290,39 @@ exports.search = async (req, res, next) => {
                         brandFilter: brandFilter[0],
                         otherFilters
                     }
+                }
+            })
+        )
+    }
+    catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: 'error',
+                statusCode: 500,
+                msg: 'internal server error'
+            })
+        )
+    }
+}
+
+exports.searchSuggestions = async (req, res, next) => {
+    try {
+        let { searchText } = req.query;
+        let productNames = [searchText];
+        if (searchText && searchText.length >= 3) {
+            const [searchSuggestions] = await getSearchSuggestions(searchText)
+            const suggestedProductNames = searchSuggestions.map(product => product.product_name);
+            productNames = productNames.concat(suggestedProductNames);
+        }
+
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: 'success',
+                statusCode: 200,
+                msg: 'Products suggestions',
+                data: {
+                    searchSuggestions: productNames
                 }
             })
         )
