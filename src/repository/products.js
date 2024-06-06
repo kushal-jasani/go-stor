@@ -688,123 +688,40 @@ const getMaxPrice = async ({ categoryId, subCategoryId, productId, storeId, cate
     return await db.query(sql, params);
 }
 
-const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId, specification_key, specification_value }) => {
-    let conditions = [];
-    if (categoryIds) {
-        conditions.push(`p.category_id IN (${categoryIds})`);
-    }
-    if (subCategoryIds) {
-        conditions.push(`p.subcategory_id IN (${subCategoryIds})`);
-    }
-    if (storeId) {
-        conditions.push(`p.store_id = ${storeId}`);
-    }
-    let whereClause = conditions.length > 0 ? conditions.join(' OR ') : '1=1';
+// const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId, specification_key, specification_value }) => {
+//     let conditions = [];
+//     if (categoryIds) {
+//         conditions.push(`p.category_id IN (${categoryIds})`);
+//     }
+//     if (subCategoryIds) {
+//         conditions.push(`p.subcategory_id IN (${subCategoryIds})`);
+//     }
+//     if (storeId) {
+//         conditions.push(`p.store_id = ${storeId}`);
+//     }
+//     let whereClause = conditions.length > 0 ? conditions.join(' OR ') : '1=1';
 
-    let spCondition = [];
-    if (specification_key && specification_value) {
-        spCondition.push(`spec.key = '${specification_key}' AND spec.value = '${specification_value}'`);
-    }
+//     let spCondition = [];
+//     if (specification_key && specification_value) {
+//         spCondition.push(`spec.key = '${specification_key}' AND spec.value = '${specification_value}'`);
+//     }
 
-    if (spCondition.length > 0) {
-        whereClause += ' AND  ' + spCondition.join(' AND ');
-    }
+//     if (spCondition.length > 0) {
+//         whereClause += ' AND  ' + spCondition.join(' AND ');
+//     }
 
-    let sql = `
-        WITH SpecCount AS (
-            SELECT
-                spec.key AS spec_key,
-                COUNT(*) AS product_count
-            FROM
-                specifications spec
-            JOIN
-                products p ON spec.product_id = p.id
-            WHERE ${whereClause}
-            GROUP BY
-                spec.key
-        ),
-        
-        TotalProductCount AS (
-            SELECT
-                COUNT(*) AS total_count
-            FROM
-                products p
-            JOIN
-                specifications spec ON p.id = spec.product_id
-            WHERE ${whereClause}
-        ),
-        
-        SpecPercentage AS (
-            SELECT
-                spec_key,
-                (product_count / (SELECT total_count FROM TotalProductCount)) * 100 AS percentage
-            FROM
-                SpecCount
-        ),
-        
-        FilteredSpec AS (
-            SELECT
-                spec_key
-            FROM
-                SpecPercentage
-            WHERE
-                percentage >= 8
-        ),
-        
-        SpecValues AS (
-            SELECT
-                fs.spec_key,
-                JSON_ARRAYAGG(spec_value) AS spec_values
-            FROM (
-                SELECT DISTINCT
-                    spec.key AS spec_key,
-                    spec.value AS spec_value
-                FROM
-                    specifications spec
-                JOIN
-                    products p ON spec.product_id = p.id
-                WHERE
-                    spec.key IN (SELECT spec_key FROM FilteredSpec) AND ${whereClause}
-            ) AS subquery
-            JOIN
-                FilteredSpec fs ON subquery.spec_key = fs.spec_key
-            GROUP BY
-                fs.spec_key
-        )
-        
-        SELECT
-            spec_key,
-            spec_values
-        FROM
-            SpecValues`;
-
-    return await db.query(sql);
-};
-
-
-// const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId }) => {
-//     let params = [];
-//     let sql = `WITH SpecCount AS (
+//     let sql = `
+//         WITH SpecCount AS (
 //             SELECT
-//                 sp.key AS spec_key,
+//                 spec.key AS spec_key,
 //                 COUNT(*) AS product_count
 //             FROM
-//                 specifications sp
+//                 specifications spec
 //             JOIN
-//                 products p ON sp.product_id = p.id
-//             WHERE`
-//     if (categoryIds) {
-//         sql += ` p.category_id IN (?)`
-//         params.push(categoryIds)
-//     } else if (subCategoryIds) {
-//         sql += ` p.subcategory_id IN (?)`
-//         params.push(subCategoryIds)
-//     } else if (storeId) {
-//         sql += ` p.store_id = ?`
-//         params.push(storeId)
-//     }
-//     sql += ` GROUP BY
-//                 sp.key
+//                 products p ON spec.product_id = p.id
+//             WHERE ${whereClause}
+//             GROUP BY
+//                 spec.key
 //         ),
 
 //         TotalProductCount AS (
@@ -812,18 +729,10 @@ const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId, specifica
 //                 COUNT(*) AS total_count
 //             FROM
 //                 products p
-//             WHERE`
-//     if (categoryIds) {
-//         sql += ` p.category_id IN (?)`
-//         params.push(categoryIds)
-//     } else if (subCategoryIds) {
-//         sql += ` p.subcategory_id IN (?)`
-//         params.push(subCategoryIds)
-//     } else if (storeId) {
-//         sql += ` p.store_id = ?`
-//         params.push(storeId)
-//     }
-//     sql += ` ),
+//             JOIN
+//                 specifications spec ON p.id = spec.product_id
+//             WHERE ${whereClause}
+//         ),
 
 //         SpecPercentage AS (
 //             SELECT
@@ -848,25 +757,15 @@ const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId, specifica
 //                 JSON_ARRAYAGG(spec_value) AS spec_values
 //             FROM (
 //                 SELECT DISTINCT
-//                     sp.key AS spec_key,
-//                     sp.value AS spec_value
+//                     spec.key AS spec_key,
+//                     spec.value AS spec_value
 //                 FROM
-//                     specifications sp
+//                     specifications spec
 //                 JOIN
-//                     products p ON sp.product_id = p.id
+//                     products p ON spec.product_id = p.id
 //                 WHERE
-//                     sp.key IN (SELECT spec_key FROM FilteredSpec) AND `
-//     if (categoryIds) {
-//         sql += ` p.category_id IN (?)`
-//         params.push(categoryIds)
-//     } else if (subCategoryIds) {
-//         sql += ` p.subcategory_id IN (?)`
-//         params.push(subCategoryIds)
-//     } else if (storeId) {
-//         sql += ` p.store_id = ?`
-//         params.push(storeId)
-//     }
-//     sql += ` ) AS subquery
+//                     spec.key IN (SELECT spec_key FROM FilteredSpec) AND ${whereClause}
+//             ) AS subquery
 //             JOIN
 //                 FilteredSpec fs ON subquery.spec_key = fs.spec_key
 //             GROUP BY
@@ -877,11 +776,43 @@ const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId, specifica
 //             spec_key,
 //             spec_values
 //         FROM
-//             SpecValues`
+//             SpecValues`;
 
-//     console.log(sql, params)
-//     return await db.query(sql, params);
-// }
+//     return await db.query(sql);
+// };
+
+const getOtherFilters = async ({ categoryIds, subCategoryIds, storeId, specification_key, specification_value }) => {
+    let params = [];
+    let sql = `SELECT
+            s.filter_name,
+            CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('"', s.value, '"') ORDER BY value ASC), ']') AS value_list
+        FROM
+            specifications s
+        JOIN
+            products p ON p.id = s.product_id
+        WHERE
+            s.is_filter = 1`
+
+    if (categoryIds) {
+        sql += ` AND p.category_id IN (?)`
+        params.push(categoryIds)
+    }
+
+    if (subCategoryIds) {
+        sql += ` AND p.subcategory_id IN (?)`
+        params.push(subCategoryIds)
+    }
+
+    if (storeId) {
+        sql += ` AND p.store_id IN (?)`
+        params.push(storeId)
+    }
+
+    sql += `GROUP BY
+            s.filter_name`
+
+    return await db.query(sql, params);
+};
 
 const getCategoryName = async (categoryId) => {
     let sql = `SELECT name FROM category WHERE id = ?`
