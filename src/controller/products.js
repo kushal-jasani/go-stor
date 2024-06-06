@@ -10,8 +10,6 @@ const {
     searchProductList,
     searchProductCount,
     categoryFilter,
-    filterBySearch,
-    // getBrandList,
     getMaxPrice,
     getOtherFilters,
     getCategoryName,
@@ -267,7 +265,7 @@ exports.search = async (req, res, next) => {
         if (productId.length) {
             [category] = await categoryFilter(productId);
 
-            [filters] = await filterBySearch(productId);
+            [filters] = await getOtherFilters(productId);
             filters.map(filter => {
                 filter.value_list = JSON.parse(filter.value_list)
             })
