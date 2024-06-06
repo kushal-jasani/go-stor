@@ -14,4 +14,6 @@ router.get('/product/:productId', productController.getProductByProductId);
 
 router.get('/search', productController.search);
 
+router.get('/search-suggestion', productController.searchSuggestions);
+
 module.exports = router;
