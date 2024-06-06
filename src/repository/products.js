@@ -521,87 +521,110 @@ const categoryFilter = async (productId) => {
     return await db.query(sql, params);
 }
 
+// const filterBySearch = async (productId) => {
+//     let params = [];
+//     let sql = `WITH SpecCount AS (
+//                 SELECT
+//                     sp.key AS spec_key,
+//                     COUNT(*) AS product_count
+//                 FROM
+//                     specifications sp
+//                 JOIN
+//                     products p ON sp.product_id = p.id
+//                 WHERE`
+//     if (productId) {
+//         sql += ` p.id IN (?)`
+//         params.push(productId)
+//     }
+//     sql += ` GROUP BY
+//                     sp.key
+//             ),
+
+//             TotalProductCount AS (
+//                 SELECT
+//                     COUNT(*) AS total_count
+//                 FROM
+//                     products p
+//                 WHERE`
+//     if (productId) {
+//         sql += ` p.id IN (?)`
+//         params.push(productId)
+//     }
+//     sql += ` ),
+
+//             SpecPercentage AS (
+//                 SELECT
+//                     spec_key,
+//                     (product_count / (SELECT total_count FROM TotalProductCount)) * 100 AS percentage
+//                 FROM
+//                     SpecCount
+//             ),
+
+//             FilteredSpec AS (
+//                 SELECT
+//                     spec_key
+//                 FROM
+//                     SpecPercentage
+//                 WHERE
+//                     percentage >= 50
+//             ),
+
+//             SpecValues AS (
+//                 SELECT
+//                     fs.spec_key,
+//                     JSON_ARRAYAGG(spec_value) AS spec_values
+//                 FROM (
+//                     SELECT DISTINCT
+//                         sp.key AS spec_key,
+//                         sp.value AS spec_value
+//                     FROM
+//                         specifications sp
+//                     JOIN
+//                         products p ON sp.product_id = p.id
+//                     WHERE
+//                         sp.key IN (SELECT spec_key FROM FilteredSpec) AND `
+//     if (productId) {
+//         sql += ` p.id IN (?)`
+//         params.push(productId)
+//     }
+//     sql += ` ) AS subquery
+//                 JOIN
+//                     FilteredSpec fs ON subquery.spec_key = fs.spec_key
+//                 GROUP BY
+//                     fs.spec_key
+//             )
+
+//             SELECT
+//                 spec_key,
+//                 spec_values
+//             FROM
+//                 SpecValues`
+
+//     return await db.query(sql, params);
+// }
+
 const filterBySearch = async (productId) => {
     let params = [];
-    let sql = `WITH SpecCount AS (
-                SELECT
-                    sp.key AS spec_key,
-                    COUNT(*) AS product_count
-                FROM
-                    specifications sp
-                JOIN
-                    products p ON sp.product_id = p.id
-                WHERE`
+    let sql = `SELECT
+            s.filter_name,
+            CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('"', s.value, '"') ORDER BY value ASC), ']') AS value_list
+        FROM
+            specifications s
+        JOIN
+            products p ON p.id = s.product_id
+        WHERE
+            s.is_filter = 1`
+
     if (productId) {
-        sql += ` p.id IN (?)`
+        sql += ` AND p.id IN (?)`
         params.push(productId)
     }
-    sql += ` GROUP BY
-                    sp.key
-            ),
-            
-            TotalProductCount AS (
-                SELECT
-                    COUNT(*) AS total_count
-                FROM
-                    products p
-                WHERE`
-    if (productId) {
-        sql += ` p.id IN (?)`
-        params.push(productId)
-    }
-    sql += ` ),
-            
-            SpecPercentage AS (
-                SELECT
-                    spec_key,
-                    (product_count / (SELECT total_count FROM TotalProductCount)) * 100 AS percentage
-                FROM
-                    SpecCount
-            ),
-            
-            FilteredSpec AS (
-                SELECT
-                    spec_key
-                FROM
-                    SpecPercentage
-                WHERE
-                    percentage >= 50
-            ),
-            
-            SpecValues AS (
-                SELECT
-                    fs.spec_key,
-                    JSON_ARRAYAGG(spec_value) AS spec_values
-                FROM (
-                    SELECT DISTINCT
-                        sp.key AS spec_key,
-                        sp.value AS spec_value
-                    FROM
-                        specifications sp
-                    JOIN
-                        products p ON sp.product_id = p.id
-                    WHERE
-                        sp.key IN (SELECT spec_key FROM FilteredSpec) AND `
-    if (productId) {
-        sql += ` p.id IN (?)`
-        params.push(productId)
-    }
-    sql += ` ) AS subquery
-                JOIN
-                    FilteredSpec fs ON subquery.spec_key = fs.spec_key
-                GROUP BY
-                    fs.spec_key
-            )
-            
-            SELECT
-                spec_key,
-                spec_values
-            FROM
-                SpecValues`
+
+    sql += `GROUP BY
+            s.filter_name`
 
     return await db.query(sql, params);
-}
+};
 
 // const getBrandList = async ({ categoryId, subCategoryId }) => {
 //     let sql = `SELECT DISTINCT
