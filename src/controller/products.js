@@ -256,17 +256,23 @@ exports.search = async (req, res, next) => {
         const [searchProductsCount] = await searchProductCount(searchText, parsedPriceFilter, parsedOtherFilter, sortBy)
 
         let productId = [];
-        searchProducts.forEach(product => {
+        searchProductsCount.forEach(product => {
             productId.push(product.product_id)
         })
 
         const [price] = await getMaxPrice(productId);
         const priceFilter1 = { min_price: 0, max_price: price[0].max_price };
 
-        let otherFilters, category;
+        let filters, category, brandFilter, otherFilters;
         if (productId.length) {
             [category] = await categoryFilter(productId);
-            [otherFilters] = await filterBySearch(productId)
+
+            [filters] = await filterBySearch(productId);
+            filters.map(filter => {
+                filter.value_list = JSON.parse(filter.value_list)
+            })
+            brandFilter = filters.filter(filter => filter.filter_name === "Brand");
+            otherFilters = filters.filter(filter => filter.filter_name !== "Brand");
         }
 
         return sendHttpResponse(req, res, next,
@@ -279,7 +285,8 @@ exports.search = async (req, res, next) => {
                     total_products: searchProductsCount.length,
                     filters: {
                         categoryFilter: (category && (category.length > 1)) ? category : undefined,
-                        priceFilter1,
+                        priceFilter: priceFilter1,
+                        brandFilter: brandFilter[0],
                         otherFilters
                     }
                 }
