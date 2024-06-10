@@ -296,7 +296,8 @@ exports.getCheckout = async (req, res, next) => {
                     product_name: productDetail[0].product_name,
                     product_selling_price: productDetail[0].product_selling_price,
                     image: productDetail[0].images[0],
-                    quantity: product.quantity
+                    quantity: product.quantity,
+                    couponDiscount: '0.00'
                 }
                 orderItems.push(orderItem)
             })
@@ -350,7 +351,7 @@ exports.getCheckout = async (req, res, next) => {
             couponProducts.forEach(couponProduct => {
                 couponProductsTotalAmount += parseFloat(couponProduct.product_selling_price) * parseInt(couponProduct.quantity)
             })
-    
+
             orderItems.forEach(orderItem => {
                 orderItem.couponDiscount = '0.00';
                 couponProducts.forEach(couponProduct => {
