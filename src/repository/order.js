@@ -120,7 +120,8 @@ const getOrderByOrderItemId = async ({ userId, orderItemId }) => {
                     'total_amount', ROUND(
                         (p.MRP * oi.quantity) - ((p.MRP * oi.quantity) - (p.selling_price * oi.quantity)) - oi.coupon_discount + oi.delivery_charge,
                         2
-                    )
+                    ),
+                    'referral_discount', o.referral_bonus_used
                 )
             ) AS order_summary,
             (
