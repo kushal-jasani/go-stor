@@ -1,9 +1,7 @@
 const {
-    getCurrentOrders,
-    getCurrentOrderCount,
-    getPastOrders,
-    getPastOrderCount,
-    getOrderByOrderId,
+    getOrderProducts,
+    getOrderProductsCount,
+    getOrderByOrderItemId,
     addOrderDetail,
     addOrderItemDetail,
     addPaymentDetail,
@@ -24,7 +22,8 @@ const {
 } = require('../repository/coupons');
 
 const {
-    getProductByProductId
+    getProductByProductId,
+    getProductIdByCategoryId
 } = require('../repository/products');
 
 const {
@@ -64,18 +63,12 @@ const isApplicable = async (couponId, order_total, orderCount) => {
 
 exports.getOrders = async (req, res, next) => {
     try {
-        const currentOrderPage = parseInt(req.query.currentOrderPage) || 1;
-        const currentOrderLimit = 10;
-        const currentOrderOffset = (currentOrderPage - 1) * currentOrderLimit;
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const offset = (page - 1) * limit;
 
-        const pastOrderPage = parseInt(req.query.pastOrderPage) || 1;
-        const pastOrderLimit = 10;
-        const pastOrderOffset = (pastOrderPage - 1) * pastOrderLimit;
-
-        const [currentOrders] = await getCurrentOrders({ userId: req.user.userId, currentOrderOffset, currentOrderLimit })
-        const [currentOrdersCount] = await getCurrentOrderCount({ userId: req.user.userId })
-        const [pastOrders] = await getPastOrders({ userId: req.user.userId, pastOrderOffset, pastOrderLimit })
-        const [pastOrdersCount] = await getPastOrderCount({ userId: req.user.userId })
+        const [orders] = await getOrderProducts({ userId: req.user.userId, offset, limit })
+        const [ordersCount] = await getOrderProductsCount({ userId: req.user.userId })
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -83,10 +76,8 @@ exports.getOrders = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Orders fetched!',
                 data: {
-                    currentOrders: currentOrders.length ? currentOrders : `No current orders found`,
-                    total_current_orders: currentOrdersCount.length,
-                    pastOrders: pastOrders.length ? pastOrders : `No past orders found`,
-                    total_past_orders: pastOrdersCount.length,
+                    orders: orders.length ? orders : `No orders found`,
+                    total_orders: ordersCount.length
                 }
             })
         );
@@ -102,10 +93,10 @@ exports.getOrders = async (req, res, next) => {
     }
 }
 
-exports.getOrderByOrderId = async (req, res, next) => {
+exports.getOrderByOrderItemId = async (req, res, next) => {
     try {
-        const orderId = req.params.orderId;
-        const [order] = await getOrderByOrderId({ userId: req.user.userId, orderId })
+        const orderItemId = req.params.orderId;
+        const [order] = await getOrderByOrderItemId({ userId: req.user.userId, orderItemId })
         if (!order.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -312,7 +303,7 @@ exports.getCheckout = async (req, res, next) => {
         );
         order_sub_total = order_sub_total.toFixed(2);
         let deliveryCharge = order_sub_total > 5999 ? 0 : (order_sub_total * 0.02).toFixed(2)
-        let discountAmount = 0;
+        let discountAmount = 0, couponProducts;
         if (couponId) {
             const [coupon] = await getCouponByCouponId(couponId);
             if (!coupon.length) {
@@ -324,7 +315,8 @@ exports.getCheckout = async (req, res, next) => {
                     })
                 );
             }
-            const { discount_type, discount_value, max_discount } = coupon[0]; let [orderCount] = await getOrderCount({ user_id: req.user.userId })
+            const { discount_type, discount_value, max_discount, category_id, product_id } = coupon[0];
+            let [orderCount] = await getOrderCount({ user_id: req.user.userId })
             let is_valid = await isApplicable(couponId, order_sub_total, orderCount)
             if (!is_valid) {
                 return sendHttpResponse(req, res, next,
@@ -342,7 +334,37 @@ exports.getCheckout = async (req, res, next) => {
                 const rated_discount = (order_sub_total * discount_value) / 100
                 discountAmount = rated_discount > max_discount ? max_discount : rated_discount
             }
+
+            if (product_id) {
+                couponProducts = orderItems.filter(product => product_id.includes(product.product_id));
+            } else if (category_id) {
+                let [ids] = await getProductIdByCategoryId(JSON.parse(category_id))
+                ids = ids.map(product => product.id)
+                couponProducts = orderItems.filter(product => ids.includes(product.product_id));
+            }
         }
+
+        // calculate each product coupon discount
+        let couponProductsTotalAmount = 0;
+        couponProducts.forEach(couponProduct => {
+            couponProductsTotalAmount += parseFloat(couponProduct.product_selling_price) * parseInt(couponProduct.quantity)
+        })
+
+        orderItems.forEach(orderItem => {
+            orderItem.couponDiscount = '0.00';
+            couponProducts.forEach(couponProduct => {
+                if (orderItem.product_id === couponProduct.product_id) {
+                    let rate = parseFloat(orderItem.product_selling_price) * parseInt(orderItem.quantity) / couponProductsTotalAmount
+                    orderItem.couponDiscount = (rate * discountAmount).toFixed(2)
+                }
+            })
+        })
+
+        // calculate each product delivery charge
+        orderItems.forEach(orderItem => {
+            let rate = parseFloat(orderItem.product_selling_price) * parseInt(orderItem.quantity) / order_sub_total
+            orderItem.deliveryCharge = (rate * deliveryCharge).toFixed(2)
+        })
 
         let order_total = (parseFloat(order_sub_total) + parseFloat(deliveryCharge) - parseFloat(discountAmount)).toFixed(2);
 
@@ -387,7 +409,7 @@ exports.getCheckout = async (req, res, next) => {
         let order_address_id = addOrderAddress.insertId
 
         // add order in database
-        const [order] = await addOrderDetail({ user_id: req.user.userId, coupon_id: couponId, address_id: order_address_id, gross_amount: order_sub_total, discount_amount: discountAmount, delivery_charge: deliveryCharge, referral_bonus_used: remaining_reward, order_amount: order_total, status: 'pending' })
+        const [order] = await addOrderDetail({ user_id: req.user.userId, coupon_id: couponId, address_id: order_address_id, gross_amount: order_sub_total, discount_amount: discountAmount, delivery_charge: deliveryCharge, referral_bonus_used: remaining_reward, order_amount: order_total })
         if (!order.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -402,10 +424,13 @@ exports.getCheckout = async (req, res, next) => {
         // add order Items in database
         await Promise.all(
             orderItems.map(async (orderItem) => {
-                let { product_id, quantity, product_selling_price } = orderItem;
-                await addOrderItemDetail({ order_id: orderId, product_id, quantity, price: product_selling_price })
+                let { product_id, quantity, product_selling_price, couponDiscount, deliveryCharge } = orderItem;
+                await addOrderItemDetail({ order_id: orderId, product_id, quantity, price: product_selling_price, coupon_discount: couponDiscount, delivery_charge: deliveryCharge })
             })
         );
+
+        // add order status in database
+        await updateOrderStatus({ order_id: orderId, status: 'pending' })
 
         let paymentIntent;
         const amountInPaisa = Math.round(order_total * 100);
@@ -497,7 +522,7 @@ exports.stripeWebhook = async (req, res, next) => {
                 }
 
                 // Update order table status & the payment details table with the payment status
-                await updateOrderStatus(orderId, 'placed');
+                await updateOrderStatus({ order_id: orderId, status: 'Order Placed' });
                 await updatePaymentDetails(orderId, invoiceNumber, paymentIntentSucceeded.payment_method_types[0], paymentIntentSucceeded.status);
 
                 const userId = paymentDetail[0].user_id;
@@ -539,7 +564,7 @@ exports.stripeWebhook = async (req, res, next) => {
                 }
 
                 // Update order table status & the payment details table with the payment status
-                await updateOrderStatus(orderId, 'cancel');
+                await updateOrderStatus({ order_id: orderId, status: 'cancel' });
                 await updatePaymentDetails(orderId, invoiceNumber, paymentIntentPaymentFailed.payment_method_types[0], paymentIntentPaymentFailed.status);
                 break;
 

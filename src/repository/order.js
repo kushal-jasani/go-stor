@@ -1,123 +1,166 @@
 const db = require('../util/db');
 
-const getCurrentOrders = async ({ userId, currentOrderOffset, currentOrderLimit }) => {
+const getOrderProducts = async ({ userId, offset, limit }) => {
     let sql = `SELECT
-            o.id AS order_number,
-            o.order_amount AS total_amount,
-            o.status AS order_status,
+            oi.id AS order_item_id,
+            p.product_name,
             (
-                SELECT SUM(oi.quantity)
-                FROM orderItems oi
-                WHERE oi.order_id = o.id
-            ) AS total_quantity
+                SELECT i.image
+                FROM images i
+                WHERE i.product_id = p.id
+                LIMIT 1
+            ) AS images,
+            (
+                SELECT t.status
+                FROM trackOrder t
+                WHERE t.order_id = o.id
+                ORDER BY t.createdAt DESC
+                LIMIT 1
+            ) AS order_status,
+            o.createdAt AS order_date
         FROM
-            orders o
+            orderItems oi
+        JOIN
+            orders o ON oi.order_id = o.id
+        JOIN
+            products p ON oi.product_id = p.id
         WHERE
-            o.user_id = ? AND o.status IN ('placed', 'packed', 'shipped')
+            o.user_id = ? AND (
+                (
+                    SELECT t.status
+                    FROM trackOrder t
+                    WHERE t.order_id = o.id
+                    ORDER BY t.createdAt DESC
+                    LIMIT 1
+                ) IN ('Order Placed', 'Order Packed', 'Shipped', 'Out For Delivery', 'Order Delivered', 'Order Cancelled', 'Refund Initiated', 'Refunded')
+            )
         ORDER BY
             o.createdAt DESC
         LIMIT ?, ?`
 
-    let params = [userId, currentOrderOffset, currentOrderLimit]
+    let params = [userId, offset, limit]
     return await db.query(sql, params)
 }
 
-const getCurrentOrderCount = async ({ userId }) => {
-    let sql = `SELECT DISTINCT
-            o.id AS order_number
+const getOrderProductsCount = async ({ userId }) => {
+    let sql = `SELECT
+            p.product_name
         FROM
-            orders o
+            orderItems oi
+        JOIN
+                orders o ON oi.order_id = o.id
+        JOIN
+            products p ON oi.product_id = p.id
         WHERE
-            o.user_id = ? AND o.status IN ('placed', 'packed', 'shipped')`
+            o.user_id = ? AND (
+                (
+                    SELECT t.status
+                    FROM trackOrder t
+                    WHERE t.order_id = o.id
+                    ORDER BY t.createdAt DESC
+                    LIMIT 1
+                ) IN ('Order Placed', 'Order Packed', 'Shipped', 'Out For Delivery', 'Order Delivered', 'Order Cancelled', 'Refund Initiated', 'Refunded')
+            )
+        ORDER BY
+            oi.createdAt DESC`
 
     let params = [userId]
     return await db.query(sql, params)
 }
 
-const getPastOrders = async ({ userId, pastOrderOffset, pastOrderLimit }) => {
+const getOrderByOrderItemId = async ({ userId, orderItemId }) => {
     let sql = `SELECT
-            o.id AS order_number,
-            o.order_amount AS total_amount,
-            o.status AS order_status,
+            o.id AS order_id,
+            o.createdAt AS order_date,
             (
-                SELECT SUM(oi.quantity)
-                FROM orderItems oi
-                WHERE oi.order_id = o.id
-            ) AS total_quantity
-        FROM
-            orders o
-        WHERE
-            o.user_id = ? AND o.status IN ('delivered', 'cancel')
-        ORDER BY
-            o.createdAt DESC
-        LIMIT ?, ?`
-
-    let params = [userId, pastOrderOffset, pastOrderLimit]
-    return await db.query(sql, params)
-}
-
-const getPastOrderCount = async ({ userId }) => {
-    let sql = `SELECT DISTINCT
-            o.id AS order_number
-        FROM
-            orders o
-        WHERE
-            o.user_id = ? AND o.status IN ('delivered', 'cancel')`
-
-    let params = [userId]
-    return await db.query(sql, params)
-}
-
-const getOrderByOrderId = async ({ userId, orderId }) => {
-    let sql = `SELECT
-            o.createdAt AS Order_date,
-            o.id AS order_number,
-            o.status AS order_status,
-            (
-                SELECT JSON_ARRAYAGG(
-                    JSON_OBJECT(
-                        'product_id', oi.product_id,
-                        'product_name', p.product_name,
-                        'product_image', (
-                            SELECT image
-                            FROM images
-                            WHERE product_id = p.id
-                            ORDER BY id ASC
-                            LIMIT 1
-                        ),
-                        'quantity', oi.quantity,
-                        'order_price', oi.price
+                SELECT JSON_OBJECT(
+                    'order_item_id', oi.id,
+                    'product_name', p.product_name,
+                    'product_quantity', oi.quantity,
+                    'images', (
+                        SELECT i.image
+                        FROM images i
+                        WHERE i.product_id = p.id
+                        LIMIT 1
+                    ),
+                    'product_mrp', CAST((p.MRP * oi.quantity) AS UNSIGNED),
+                    'product_selling_price', oi.price,
+                    'discount_amount', CAST(((p.MRP * oi.quantity) - p.selling_price) AS UNSIGNED),
+                    'discount_percentage', CONCAT(FORMAT(100 - ((p.selling_price / (p.MRP * oi.quantity)) * 100), 0), '%'),
+                    'order_status', (
+                        SELECT t.status
+                        FROM trackOrder t
+                        WHERE t.order_id = o.id
+                        ORDER BY t.createdAt DESC
+                        LIMIT 1
                     )
                 )
-                FROM orderItems oi
-                JOIN products p ON oi.product_id = p.id
-                WHERE oi.order_id = o.id
-            ) AS Product_details,
+            ) AS product_details,
+            (
+                SELECT JSON_OBJECT(
+                    'cancel_info', CASE
+                        WHEN oi.is_cancel = 1 THEN JSON_OBJECT('is_cancel', oi.is_cancel, 'cancel_date', oi.updatedAt)
+                        ELSE null
+                    END,
+                    'track', JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                            'status', t.status,
+                            'time', t.createdAt
+                        )
+                    )
+                )
+            ) AS track_order,
+            (
+                SELECT JSON_OBJECT(
+                    'price', CAST((p.MRP * oi.quantity) AS UNSIGNED),
+                    'Item Discount', CAST((p.MRP * oi.quantity) - (p.selling_price * oi.quantity) AS UNSIGNED),
+                    'Coupon Discount', ROUND(oi.coupon_discount, 2),
+                    'Shipping Charges', ROUND(oi.delivery_charge, 2),
+                    'total_amount', ROUND(
+                        (p.MRP * oi.quantity) - ((p.MRP * oi.quantity) - (p.selling_price * oi.quantity)) - oi.coupon_discount + oi.delivery_charge,
+                        2
+                    )
+                )
+            ) AS order_summary,
+            (
+                SELECT JSON_OBJECT(
+                    'invoice_number', pd.invoice_number,
+                    'type', pd.type,
+                    'order_amount', ROUND(
+                        (p.MRP * oi.quantity) - ((p.MRP * oi.quantity) - (p.selling_price * oi.quantity)) - oi.coupon_discount + oi.delivery_charge,
+                        2
+                    )
+                )
+            ) AS payment_method,
             (
                 SELECT JSON_OBJECT('name', a.name, 'mobile_number', a.mobile_number, 'email', a.email, 'address', a.address, 'pin_code', a.pin_code)
                 FROM orderAddress a
                 WHERE o.address_id = a.id
-            ) AS delivery_address,
-            (
-                SELECT JSON_OBJECT(
-                    'invoice_number', p.invoice_number,
-                    'type', p.type,
-                    'total_quantity', (SELECT SUM(oi.quantity) FROM orderItems oi WHERE oi.order_id = o.id),
-                    'gross_amount', ROUND(o.gross_amount, 2),
-                    'discount_amount', ROUND(o.discount_amount, 2),
-                    'delivery_charge', ROUND(o.delivery_charge, 2),
-                    'order_amount', ROUND(o.order_amount, 2)
-                )
-            ) AS payment_details
+            ) AS shipping_address
         FROM
             orders o
         JOIN
-            paymentDetails p ON o.id = p.order_id
+            orderItems oi ON o.id = oi.order_id
+        JOIN
+            products p ON oi.product_id = p.id
+        JOIN
+            paymentDetails pd ON o.id = pd.order_id
+        JOIN
+            trackOrder t ON o.id = t.order_id
         WHERE
-            o.user_id = ? AND o.id = ? AND o.status IN ('placed', 'packed', 'shipped', 'delivered', 'cancel')`
+            o.user_id = ? AND oi.id = ? AND (
+                (
+                    SELECT t.status
+                    FROM trackOrder t
+                    WHERE t.order_id = o.id
+                    ORDER BY t.createdAt DESC
+                    LIMIT 1
+                ) IN ('Order Placed', 'Order Packed', 'Shipped', 'Out For Delivery', 'Order Delivered', 'Order Cancelled', 'Refund Initiated', 'Refunded')
+            )
+            GROUP BY pd.invoice_number, pd.type`;
 
-    let params = [userId, orderId]
-    return await db.query(sql, params)
+    let params = [userId, orderItemId];
+    return await db.query(sql, params);
 }
 
 const getOrderCount = async ({ user_id }) => {
@@ -127,17 +170,17 @@ const getOrderCount = async ({ user_id }) => {
     return await db.query(sql, params)
 }
 
-const addOrderDetail = async ({ user_id, coupon_id, address_id, gross_amount, discount_amount, delivery_charge, referral_bonus_used, order_amount, status }) => {
+const addOrderDetail = async ({ user_id, coupon_id, address_id, gross_amount, discount_amount, delivery_charge, referral_bonus_used, order_amount }) => {
     let sql = `INSERT INTO orders SET ?`
 
-    let params = { user_id, coupon_id, address_id, gross_amount, discount_amount, delivery_charge, referral_bonus_used, order_amount, status }
+    let params = { user_id, coupon_id, address_id, gross_amount, discount_amount, delivery_charge, referral_bonus_used, order_amount }
     return await db.query(sql, params)
 }
 
-const addOrderItemDetail = async ({ order_id, product_id, quantity, price }) => {
+const addOrderItemDetail = async ({ order_id, product_id, quantity, price, coupon_discount, delivery_charge }) => {
     let sql = `INSERT INTO orderItems SET ?`
 
-    let params = { order_id, product_id, quantity, price }
+    let params = { order_id, product_id, quantity, price, coupon_discount, delivery_charge }
     return await db.query(sql, params)
 }
 
@@ -166,10 +209,10 @@ const countOrdersByUserId = async (userId) => {
     return await db.query(sql, params);
 };
 
-const updateOrderStatus = async (orderId, status) => {
-    let sql = `UPDATE orders SET status = ? WHERE id = ?`
+const updateOrderStatus = async ({ order_id, status }) => {
+    let sql = `INSERT INTO trackOrder SET ?`
 
-    let params = [status, orderId]
+    let params = { order_id, status }
     return await db.query(sql, params)
 }
 
@@ -211,11 +254,9 @@ const deductReferralAmount = async (userId, usedAmt) => {
 };
 
 module.exports = {
-    getCurrentOrders,
-    getCurrentOrderCount,
-    getPastOrders,
-    getPastOrderCount,
-    getOrderByOrderId,
+    getOrderProducts,
+    getOrderProductsCount,
+    getOrderByOrderItemId,
     getOrderCount,
     addOrderDetail,
     addOrderItemDetail,

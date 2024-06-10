@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.get('/list', isAuth, orderController.getOrders);
 
-router.get('/order/:orderId', isAuth, orderController.getOrderByOrderId);
+router.get('/order/:orderId', isAuth, orderController.getOrderByOrderItemId);
 
 router.get('/order-summary', isLogIn, orderController.getOrderSummary);
 
