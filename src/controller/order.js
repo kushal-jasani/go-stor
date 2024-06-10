@@ -346,19 +346,21 @@ exports.getCheckout = async (req, res, next) => {
 
         // calculate each product coupon discount
         let couponProductsTotalAmount = 0;
-        couponProducts.forEach(couponProduct => {
-            couponProductsTotalAmount += parseFloat(couponProduct.product_selling_price) * parseInt(couponProduct.quantity)
-        })
-
-        orderItems.forEach(orderItem => {
-            orderItem.couponDiscount = '0.00';
+        if (couponProducts) {
             couponProducts.forEach(couponProduct => {
-                if (orderItem.product_id === couponProduct.product_id) {
-                    let rate = parseFloat(orderItem.product_selling_price) * parseInt(orderItem.quantity) / couponProductsTotalAmount
-                    orderItem.couponDiscount = (rate * discountAmount).toFixed(2)
-                }
+                couponProductsTotalAmount += parseFloat(couponProduct.product_selling_price) * parseInt(couponProduct.quantity)
             })
-        })
+    
+            orderItems.forEach(orderItem => {
+                orderItem.couponDiscount = '0.00';
+                couponProducts.forEach(couponProduct => {
+                    if (orderItem.product_id === couponProduct.product_id) {
+                        let rate = parseFloat(orderItem.product_selling_price) * parseInt(orderItem.quantity) / couponProductsTotalAmount
+                        orderItem.couponDiscount = (rate * discountAmount).toFixed(2)
+                    }
+                })
+            })
+        }
 
         // calculate each product delivery charge
         orderItems.forEach(orderItem => {
