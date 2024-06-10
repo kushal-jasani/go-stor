@@ -98,8 +98,9 @@ const getOrderByOrderItemId = async ({ userId, orderItemId }) => {
             ) AS product_details,
             (
                 SELECT JSON_OBJECT(
+                    'is_cancel', oi.is_cancel,
                     'cancel_info', CASE
-                        WHEN oi.is_cancel = 1 THEN JSON_OBJECT('is_cancel', oi.is_cancel, 'cancel_date', oi.updatedAt)
+                        WHEN oi.is_cancel = 1 THEN JSON_OBJECT('cancel_date', oi.updatedAt)
                         ELSE null
                     END,
                     'track', JSON_ARRAYAGG(
@@ -113,13 +114,14 @@ const getOrderByOrderItemId = async ({ userId, orderItemId }) => {
             (
                 SELECT JSON_OBJECT(
                     'price', CAST((p.MRP * oi.quantity) AS UNSIGNED),
-                    'Item Discount', CAST((p.MRP * oi.quantity) - (p.selling_price * oi.quantity) AS UNSIGNED),
-                    'Coupon Discount', ROUND(oi.coupon_discount, 2),
-                    'Shipping Charges', ROUND(oi.delivery_charge, 2),
+                    'item_discount', CAST((p.MRP * oi.quantity) - (p.selling_price * oi.quantity) AS UNSIGNED),
+                    'coupon_discount', ROUND(oi.coupon_discount, 2),
+                    'shipping_charges', ROUND(oi.delivery_charge, 2),
                     'total_amount', ROUND(
                         (p.MRP * oi.quantity) - ((p.MRP * oi.quantity) - (p.selling_price * oi.quantity)) - oi.coupon_discount + oi.delivery_charge,
                         2
-                    )
+                    ),
+                    'referral_discount', o.referral_bonus_used
                 )
             ) AS order_summary,
             (

@@ -96,7 +96,7 @@ exports.getOrders = async (req, res, next) => {
 exports.getOrderByOrderItemId = async (req, res, next) => {
     try {
         const orderItemId = req.params.orderId;
-        const [order] = await getOrderByOrderItemId({ userId: req.user.userId, orderItemId })
+        let [order] = await getOrderByOrderItemId({ userId: req.user.userId, orderItemId })
         if (!order.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -105,6 +105,18 @@ exports.getOrderByOrderItemId = async (req, res, next) => {
                     msg: 'Order Detail not found!',
                 })
             );
+        }
+        order[0].track_order.track = order[0].track_order.track.filter(trackStatus => trackStatus.status !== 'pending')
+        if (order[0].track_order.is_cancel) {
+            order[0].track_order.track = order[0].track_order.track.filter(trackStatus => trackStatus.status === 'Order Placed')
+            order[0].track_order.cancel_info = [
+                {
+                    "status": "Order Cancelled",
+                    "time": order[0].track_order.cancel_info.cancel_date
+                }
+            ]
+        } else {
+            order[0].track_order.cancel_info = undefined
         }
         return sendHttpResponse(req, res, next,
             generateResponse({
