@@ -130,7 +130,7 @@ exports.getOrderByOrderItemId = async (req, res, next) => {
         let orderStatus = trackOrderStatus.map(status => status.order_status).flat();
         let trackOrderDetails = cancelOrderStatusArray ? orderStatus.concat(cancelOrderStatusArray) : orderStatus;
         order[0].track_order = trackOrderDetails
-        
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
@@ -654,6 +654,15 @@ exports.cancelOrder = async (req, res, next) => {
     try {
         const { orderItemsId, reason } = req.body;
         const [orderItemsDetails] = await getOrderItemsDetails(orderItemsId)
+        if (!orderItemsDetails.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: "Invalid order items id"
+                })
+            );
+        }
 
         const { order_id, is_cancel } = orderItemsDetails[0]
         if (is_cancel === 1) {
