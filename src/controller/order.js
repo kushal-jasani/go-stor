@@ -509,7 +509,7 @@ exports.getCheckout = async (req, res, next) => {
 
 exports.getCheckoutSuccess = async (req, res, next) => {
     try {
-        const { orderId } = req.body;
+        const { orderId } = req.query;
         const [products] = await getProductsByOrderId(orderId)
         const [orderSummary] = await getOrderSummaryByOrderId(orderId)
         return sendHttpResponse(req, res, next,
