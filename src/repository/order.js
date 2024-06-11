@@ -255,6 +255,49 @@ const deductReferralAmount = async (userId, usedAmt) => {
     return await db.query(sql, params);
 };
 
+const getProductsByOrderId = async (orderId) => {
+    let sql = `SELECT
+            oi.id AS order_item_id,
+            p.product_name AS product_name,
+            oi.quantity AS product_quantity,
+            (
+                SELECT i.image
+                FROM images i
+                WHERE i.product_id = p.id
+                LIMIT 1
+            ) AS images,
+            CAST((p.MRP * oi.quantity) AS UNSIGNED) AS product_mrp,
+            oi.price AS product_selling_price,
+            CAST(((p.MRP * oi.quantity) - p.selling_price) AS UNSIGNED) AS discount_amount,
+            CONCAT(FORMAT(100 - ((p.selling_price / (p.MRP * oi.quantity)) * 100), 0), '%') AS discount_percentage
+        FROM
+            orderItems oi
+        JOIN
+            products p ON oi.product_id = p.id
+        WHERE
+            oi.order_id = ?`
+    let params = [orderId]
+    return await db.query(sql, params);
+};
+
+const getOrderSummaryByOrderId = async (orderId) => {
+    let sql = `SELECT
+            SUM(oi.quantity) AS quantity,
+            o.gross_amount AS Price,
+            o.discount_amount,
+            o.delivery_charge,
+            o.referral_bonus_used AS referral_discount,
+            0.order_amount
+        FROM
+            orders o
+        JOIN
+            orderItems oi ON o.id = oi.order_id
+        WHERE
+            o.id = ?`
+    let params = [orderId]
+    return await db.query(sql, params);
+};
+
 module.exports = {
     getOrderProducts,
     getOrderProductsCount,
@@ -271,5 +314,7 @@ module.exports = {
     findReferralByCode,
     updateReferralBonus,
     getReferralAmount,
-    deductReferralAmount
+    deductReferralAmount,
+    getProductsByOrderId,
+    getOrderSummaryByOrderId
 };

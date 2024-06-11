@@ -14,7 +14,9 @@ const {
     findReferralByCode,
     updateReferralBonus,
     getReferralAmount,
-    deductReferralAmount
+    deductReferralAmount,
+    getProductsByOrderId,
+    getOrderSummaryByOrderId
 } = require('../repository/order');
 
 const {
@@ -23,7 +25,8 @@ const {
 
 const {
     getProductByProductId,
-    getProductIdByCategoryId
+    getProductIdByCategoryId,
+    getProductsByProductIds
 } = require('../repository/products');
 
 const {
@@ -489,6 +492,35 @@ exports.getCheckout = async (req, res, next) => {
                     order_id: orderId,
                     paymentIntent_id: paymentIntent ? paymentIntent.id : null,
                     paymentIntent_client_secret: paymentIntent ? paymentIntent.client_secret : null
+                }
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
+    }
+}
+
+exports.getCheckoutSuccess = async (req, res, next) => {
+    try {
+        const { orderId } = req.body;
+        const [products] = await getProductsByOrderId(orderId)
+        const [orderSummary] = await getOrderSummaryByOrderId(orderId)
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Order checkout proceeded',
+                data: {
+                    order_id: orderId,
+                    products,
+                    order_summary: orderSummary
                 }
             })
         );

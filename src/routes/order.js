@@ -14,6 +14,8 @@ router.get('/order-summary', isLogIn, orderController.getOrderSummary);
 
 router.post('/checkout', isAuth, orderController.getCheckout);
 
+router.post('/checkout/success', isAuth, orderController.getCheckoutSuccess);
+
 router.post('/checkout/stripe/webhook', orderController.stripeWebhook);
 
 module.exports = router;
