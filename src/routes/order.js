@@ -18,4 +18,6 @@ router.get('/checkout/success', isAuth, orderController.getCheckoutSuccess);
 
 router.post('/checkout/stripe/webhook', orderController.stripeWebhook);
 
+router.post('/cancel-order', isAuth, orderController.cancelOrder);
+
 module.exports = router;
