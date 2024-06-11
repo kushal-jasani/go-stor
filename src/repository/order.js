@@ -271,7 +271,10 @@ const getOrderSummaryByOrderId = async (orderId) => {
             SUM(oi.quantity) AS quantity,
             o.gross_amount AS Price,
             o.discount_amount,
-            o.delivery_charge,
+            CASE
+                WHEN o.delivery_charge = 0 THEN 'FREE'
+                ELSE o.delivery_charge
+            END AS delivery_charge,
             o.referral_bonus_used AS referral_discount,
             o.order_amount
         FROM
