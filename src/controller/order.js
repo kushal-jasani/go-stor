@@ -16,7 +16,13 @@ const {
     getReferralAmount,
     deductReferralAmount,
     getProductsByOrderId,
-    getOrderSummaryByOrderId
+    getOrderSummaryByOrderId,
+    getOrderItemsDetails,
+    getOrderStatus,
+    getTrackOrderStatus,
+    getCancelOrderStatus,
+    cancelOrder,
+    updateCancelOrderStatus
 } = require('../repository/order');
 
 const {
@@ -109,18 +115,22 @@ exports.getOrderByOrderItemId = async (req, res, next) => {
                 })
             );
         }
-        order[0].track_order.track = order[0].track_order.track.filter(trackStatus => trackStatus.status !== 'pending')
-        if (order[0].track_order.is_cancel) {
-            order[0].track_order.track = order[0].track_order.track.filter(trackStatus => trackStatus.status === 'Order Placed')
-            order[0].track_order.cancel_info = [
-                {
-                    "status": "Order Cancelled",
-                    "time": order[0].track_order.cancel_info.cancel_date
-                }
-            ]
-        } else {
-            order[0].track_order.cancel_info = undefined
+        const { order_id, is_cancel } = order[0]
+        const { order_item_id } = order[0].product_details
+        const [trackOrderStatus] = await getTrackOrderStatus(order_id)
+        trackOrderStatus[0].order_status = trackOrderStatus[0].order_status.filter(trackStatus => trackStatus.status !== 'pending')
+
+        let cancelOrderStatus, cancelOrderStatusArray
+        if (is_cancel) {
+            trackOrderStatus[0].order_status = trackOrderStatus[0].order_status.filter(trackStatus => trackStatus.status == 'Order Placed');
+            [cancelOrderStatus] = await getCancelOrderStatus(order_item_id)
+            cancelOrderStatusArray = cancelOrderStatus.map(status => status.cancel_order_status).flat();
         }
+
+        let orderStatus = trackOrderStatus.map(status => status.order_status).flat();
+        let trackOrderDetails = cancelOrderStatusArray ? orderStatus.concat(cancelOrderStatusArray) : orderStatus;
+        order[0].track_order = trackOrderDetails
+        
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
@@ -509,7 +519,7 @@ exports.getCheckout = async (req, res, next) => {
 
 exports.getCheckoutSuccess = async (req, res, next) => {
     try {
-        const { orderId } = req.body;
+        const { orderId } = req.query;
         const [products] = await getProductsByOrderId(orderId)
         const [orderSummary] = await getOrderSummaryByOrderId(orderId)
         return sendHttpResponse(req, res, next,
@@ -628,6 +638,54 @@ exports.stripeWebhook = async (req, res, next) => {
             default:
                 console.log(`Unhandled event type ${event.type}`);
         }
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
+exports.cancelOrder = async (req, res, next) => {
+    try {
+        const { orderItemsId, reason } = req.body;
+        const [orderItemsDetails] = await getOrderItemsDetails(orderItemsId)
+
+        const { order_id, is_cancel } = orderItemsDetails[0]
+        if (is_cancel === 1) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 400,
+                    msg: `Your order is already cancel!`
+                })
+            );
+        }
+
+        const [status] = await getOrderStatus(order_id);
+        if (!status.length || status[0].status === 'pending' || status[0].status === 'Shipped' || status[0].status === 'Out For Delivery' || status[0].status === 'Order Delivered') {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: !status.length || status[0].status === 'pending' ? `Your order not placed yet!` : `Your order is ` + (status[0].status === 'Order Delivered' ? `Delivered` : `${status[0].status}`) + `, you can't cancel it.`
+                })
+            );
+        }
+
+        await cancelOrder(orderItemsId, reason);
+        await updateCancelOrderStatus({ order_items_id: orderItemsId, status: 'Order Cancelled' });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: "Your order is canceled successfully."
+            })
+        );
     } catch (err) {
         console.log(err);
         return sendHttpResponse(req, res, next,
