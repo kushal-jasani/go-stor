@@ -96,21 +96,7 @@ const getOrderByOrderItemId = async ({ userId, orderItemId }) => {
                     )
                 )
             ) AS product_details,
-            (
-                SELECT JSON_OBJECT(
-                    'is_cancel', oi.is_cancel,
-                    'cancel_info', CASE
-                        WHEN oi.is_cancel = 1 THEN JSON_OBJECT('cancel_date', oi.updatedAt)
-                        ELSE null
-                    END,
-                    'track', JSON_ARRAYAGG(
-                        JSON_OBJECT(
-                            'status', t.status,
-                            'time', t.createdAt
-                        )
-                    )
-                )
-            ) AS track_order,
+            oi.is_cancel AS is_cancel,
             (
                 SELECT JSON_OBJECT(
                     'price', CAST((p.MRP * oi.quantity) AS UNSIGNED),
@@ -287,7 +273,7 @@ const getOrderSummaryByOrderId = async (orderId) => {
             o.discount_amount,
             o.delivery_charge,
             o.referral_bonus_used AS referral_discount,
-            0.order_amount
+            o.order_amount
         FROM
             orders o
         JOIN
@@ -297,6 +283,67 @@ const getOrderSummaryByOrderId = async (orderId) => {
     let params = [orderId]
     return await db.query(sql, params);
 };
+
+const getOrderItemsDetails = async (orderItemsId) => {
+    let sql = `SELECT * FROM orderItems oi WHERE oi.id = ?`
+    let params = [orderItemsId]
+    return await db.query(sql, params);
+};
+
+const getOrderStatus = async (orderId) => {
+    let sql = `SELECT t.status
+            FROM trackOrder t
+            WHERE t.order_id = ?
+            ORDER BY t.createdAt DESC
+            LIMIT 1`
+
+    let params = [orderId]
+    return await db.query(sql, params)
+}
+
+const getTrackOrderStatus = async (orderId) => {
+    let sql = `SELECT
+            JSON_ARRAYAGG(
+                JSON_OBJECT(
+                    'status', t.status,
+                    'time', t.createdAt
+                )
+            ) AS order_status
+        FROM trackOrder t
+        WHERE t.order_id = ?`
+
+    let params = [orderId]
+    return await db.query(sql, params)
+}
+
+const getCancelOrderStatus = async (orderId) => {
+    let sql = `SELECT
+            JSON_ARRAYAGG(
+                JSON_OBJECT(
+                    'status', tco.status,
+                    'time', tco.createdAt
+                )
+            ) AS cancel_order_status
+        FROM trackCancelledOrder tco
+        WHERE tco.order_items_id = ?`
+
+    let params = [orderId]
+    return await db.query(sql, params)
+}
+
+const cancelOrder = async (orderItemsId, reason) => {
+    let sql = `UPDATE orderItems SET is_cancel = 1, cancel_reason = ? WHERE id = ?`
+
+    let params = [reason, orderItemsId]
+    return await db.query(sql, params)
+}
+
+const updateCancelOrderStatus = async ({ order_items_id, status }) => {
+    let sql = `INSERT INTO trackCancelledOrder SET ?`
+
+    let params = { order_items_id, status }
+    return await db.query(sql, params)
+}
 
 module.exports = {
     getOrderProducts,
@@ -316,5 +363,11 @@ module.exports = {
     getReferralAmount,
     deductReferralAmount,
     getProductsByOrderId,
-    getOrderSummaryByOrderId
+    getOrderSummaryByOrderId,
+    getOrderItemsDetails,
+    getOrderStatus,
+    getTrackOrderStatus,
+    getCancelOrderStatus,
+    cancelOrder,
+    updateCancelOrderStatus
 };
