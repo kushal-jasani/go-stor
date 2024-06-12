@@ -653,7 +653,7 @@ exports.stripeWebhook = async (req, res, next) => {
 exports.cancelOrder = async (req, res, next) => {
     try {
         const { orderItemsId, reason } = req.body;
-        const [orderItemsDetails] = await getOrderItemsDetails(orderItemsId)
+        const [orderItemsDetails] = await getOrderItemsDetails({ orderItemsId, userId: req.user.userId })
         if (!orderItemsDetails.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
