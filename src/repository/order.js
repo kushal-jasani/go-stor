@@ -287,9 +287,12 @@ const getOrderSummaryByOrderId = async (orderId) => {
     return await db.query(sql, params);
 };
 
-const getOrderItemsDetails = async (orderItemsId) => {
-    let sql = `SELECT * FROM orderItems oi WHERE oi.id = ?`
-    let params = [orderItemsId]
+const getOrderItemsDetails = async ({ orderItemsId, userId }) => {
+    let sql = `SELECT oi.*
+            FROM orderItems oi
+            JOIN orders o ON o.id = oi.order_id
+            WHERE oi.id = ? AND o.user_id = ?`
+    let params = [orderItemsId, userId]
     return await db.query(sql, params);
 };
 
