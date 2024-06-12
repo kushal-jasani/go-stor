@@ -11,11 +11,22 @@ const getOrderProducts = async ({ userId, offset, limit }) => {
                 LIMIT 1
             ) AS images,
             (
-                SELECT t.status
-                FROM trackOrder t
-                WHERE t.order_id = o.id
-                ORDER BY t.createdAt DESC
-                LIMIT 1
+                CASE 
+                    WHEN oi.is_cancel = 0 THEN (
+                        SELECT t.status
+                        FROM trackOrder t
+                        WHERE t.order_id = o.id
+                        ORDER BY t.createdAt DESC
+                        LIMIT 1
+                    )
+                    ELSE (
+                        SELECT tco.status
+                        FROM trackCancelledOrder tco
+                        WHERE tco.order_items_id = oi.id
+                        ORDER BY tco.createdAt DESC
+                        LIMIT 1
+                    )
+                END
             ) AS order_status,
             o.createdAt AS order_date
         FROM
@@ -27,11 +38,22 @@ const getOrderProducts = async ({ userId, offset, limit }) => {
         WHERE
             o.user_id = ? AND (
                 (
-                    SELECT t.status
-                    FROM trackOrder t
-                    WHERE t.order_id = o.id
-                    ORDER BY t.createdAt DESC
-                    LIMIT 1
+                    CASE 
+                        WHEN oi.is_cancel = 0 THEN (
+                            SELECT t.status
+                            FROM trackOrder t
+                            WHERE t.order_id = o.id
+                            ORDER BY t.createdAt DESC
+                            LIMIT 1
+                        )
+                        ELSE (
+                            SELECT tco.status
+                            FROM trackCancelledOrder tco
+                            WHERE tco.order_items_id = oi.id
+                            ORDER BY tco.createdAt DESC
+                            LIMIT 1
+                        )
+                    END
                 ) IN ('Order Placed', 'Order Packed', 'Shipped', 'Out For Delivery', 'Order Delivered', 'Order Cancelled', 'Refund Initiated', 'Refunded')
             )
         ORDER BY
