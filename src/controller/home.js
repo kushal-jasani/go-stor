@@ -251,11 +251,11 @@ exports.getProductsByBannerId = async (req, res, next) => {
                     statusCode: 200,
                     msg: 'Banner Products',
                     data: {
-                        products: bannerProducts.length ? bannerProducts : `No products found`,
-                        total_products: bannerProductsCount.length,
+                        products: bannerProducts && bannerProducts.length ? bannerProducts : `No products found`,
+                        total_products: bannerProductsCount ? bannerProductsCount.length : 0,
                         filters: {
                             priceFilter: priceFilter1,
-                            brandFilter: brandFilter[0],
+                            brandFilter: brandFilter ? brandFilter[0] : undefined,
                             otherFilters
                         }
                     }
