@@ -627,6 +627,13 @@ const getCategoryIdByProductId = async (productId) => {
     return await db.query(sql, params);
 }
 
+const getProductIdByCategoryId = async (category_id) => {
+    let sql = `SELECT DISTINCT id FROM products WHERE category_id IN (?)`
+
+    let params = [category_id];
+    return await db.query(sql, params);
+}
+
 module.exports = {
     getCategoryList,
     getProductsByCategoryId,
@@ -644,5 +651,6 @@ module.exports = {
     getOtherFilters,
     getCategoryName,
     getSubCategoryName,
-    getCategoryIdByProductId
+    getCategoryIdByProductId,
+    getProductIdByCategoryId
 };
