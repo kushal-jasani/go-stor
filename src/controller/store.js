@@ -81,11 +81,11 @@ exports.getProductsByStoreId = async (req, res, next) => {
                 msg: 'Products fetched!',
                 data: {
                     storeData,
-                    products: products.length ? products : `No products found`,
-                    total_products: productsCount.length,
+                    products: products && products.length ? products : `No products found`,
+                    total_products: productsCount ? productsCount.length : 0,
                     filters: {
                         priceFilter: priceFilter1,
-                        brandFilter: brandFilter[0],
+                        brandFilter: brandFilter ? brandFilter[0] : undefined,
                         otherFilters
                     }
                 }
