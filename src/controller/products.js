@@ -101,12 +101,12 @@ exports.getProductsByCategoryId = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Products fetched!',
                 data: {
-                    category_name: categoryName[0].name,
-                    products: products.length ? products : `No products found`,
-                    total_products: productsCount.length,
+                    category_name: categoryName ? categoryName[0].name : undefined,
+                    products: products && products.length ? products : `No products found`,
+                    total_products: productsCount ? productsCount.length : 0,
                     filters: {
                         priceFilter: priceFilter1,
-                        brandFilter: brandFilter[0],
+                        brandFilter: brandFilter ? brandFilter[0] : undefined,
                         otherFilters
                     }
                 }
@@ -159,12 +159,12 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Products fetched!',
                 data: {
-                    subcategory_name: subCategoryName[0].name,
-                    products: products.length ? products : `No products found`,
-                    total_products: productsCount.length,
+                    subcategory_name: subCategoryName ? subCategoryName[0].name : undefined,
+                    products: products && products.length ? products : `No products found`,
+                    total_products: productsCount ? productsCount.length : 0,
                     filters: {
                         priceFilter: priceFilter1,
-                        brandFilter: brandFilter[0],
+                        brandFilter: brandFilter ? brandFilter[0] : undefined,
                         otherFilters
                     }
                 }
@@ -282,12 +282,12 @@ exports.search = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'searching products successfully',
                 data: {
-                    searchProductList: searchProducts.length ? searchProducts : `No products found`,
-                    total_products: searchProductsCount.length,
+                    searchProductList: searchProducts && searchProducts.length ? searchProducts : `No products found`,
+                    total_products: searchProductsCount ? searchProductsCount.length : 0,
                     filters: {
                         categoryFilter: (category && (category.length > 1)) ? category : undefined,
                         priceFilter: priceFilter1,
-                        brandFilter: brandFilter[0],
+                        brandFilter: brandFilter ? brandFilter[0] : undefined,
                         otherFilters
                     }
                 }
